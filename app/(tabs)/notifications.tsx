@@ -1,73 +1,58 @@
-import React, { useState } from 'react';
+﻿import React from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { useActivities } from '@/contexts/ActivitiesContext';
+import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/themes/useTheme';
+import { createCommonStyles } from '@/styles/common';
+import { Header } from '@/components/ui/Header';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Bell, BellRing, CheckCircle, Clock, Megaphone, Star, UserPlus, XCircle } from 'lucide-react-native';
 
 export default function NotificationsScreen() {
   const { currentUser } = useAuth();
   const { notifications, markAsRead } = useNotifications();
-  const { approveJoinRequest, rejectJoinRequest, allActivities } = useActivities();
-  const [activeTab, setActiveTab] = useState<'all' | 'activities'>('all');
+  const { allActivities } = useActivities();
+  const { approveJoinRequest, rejectJoinRequest } = useActivityParticipation();
+  const theme = useTheme();
+  const commonStyles = createCommonStyles(theme);
 
   const userNotifications = notifications.filter(n => n.userId === currentUser?.id);
 
   const getNotificationIcon = (type: string) => {
+    const iconProps = { size: 20, color: theme.colors.text };
     switch (type) {
       case 'request':
-        return '👋';
+        return <UserPlus {...iconProps} />;
       case 'request_approved':
-        return '✅';
+        return <CheckCircle {...iconProps} />;
       case 'request_rejected':
-        return '❌';
+        return <XCircle {...iconProps} />;
       case 'system':
-        return '📢';
+        return <Megaphone {...iconProps} />;
       case 'reminder':
-        return '⏰';
+        return <Clock {...iconProps} />;
       case 'social':
-        return '⭐';
+        return <Star {...iconProps} />;
       default:
-        return '📌';
+        return <BellRing {...iconProps} />;
     }
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Уведомления</Text>
-      </View>
+    <SafeAreaView style={[commonStyles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+      <Header title="Уведомления" />
 
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'all' && styles.tabActive]}
-          onPress={() => setActiveTab('all')}
-        >
-          <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>
-            Все
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'activities' && styles.tabActive]}
-          onPress={() => setActiveTab('activities')}
-        >
-          <Text
-            style={[styles.tabText, activeTab === 'activities' && styles.tabTextActive]}
-          >
-            Мои активности
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView style={styles.notificationsList}>
+      <ScrollView style={[styles.notificationsList, { backgroundColor: theme.colors.surface }]} showsVerticalScrollIndicator={false}>
         {userNotifications.length === 0 && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateTitle}>Нет уведомлений</Text>
-            <Text style={styles.emptyStateText}>
-              Здесь будут отображаться важные обновления
-            </Text>
-          </View>
+          <EmptyState
+            icon={<Bell />}
+            title="Нет уведомлений"
+            description="Здесь будут отображаться важные обновления"
+          />
         )}
 
         {userNotifications.map((notification) => {
@@ -78,7 +63,7 @@ export default function NotificationsScreen() {
           return (
             <View
               key={notification.id}
-              style={[styles.notificationItem, !notification.read && styles.notificationUnread]}
+              style={[styles.notificationItem, styles.notificationUnread]}
             >
               <TouchableOpacity
                 style={styles.notificationMain}
@@ -89,9 +74,7 @@ export default function NotificationsScreen() {
                 }}
               >
                 <View style={styles.notificationIcon}>
-                  <Text style={styles.notificationIconText}>
-                    {getNotificationIcon(notification.type)}
-                  </Text>
+                  {getNotificationIcon(notification.type)}
                 </View>
                 <View style={styles.notificationContent}>
                   <Text style={styles.notificationTitle}>{notification.title}</Text>
@@ -145,45 +128,6 @@ export default function NotificationsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#000',
-  },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-  },
-  tabActive: {
-    backgroundColor: '#000',
-  },
-  tabText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#666',
-  },
-  tabTextActive: {
-    color: '#fff',
-  },
   notificationsList: {
     flex: 1,
   },
@@ -197,7 +141,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   notificationUnread: {
-    backgroundColor: '#fafafa',
+    backgroundColor: '#ffffff',
   },
   notificationIcon: {
     width: 44,
@@ -207,9 +151,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-  },
-  notificationIconText: {
-    fontSize: 20,
   },
   notificationContent: {
     flex: 1,
@@ -229,24 +170,6 @@ const styles = StyleSheet.create({
   notificationTime: {
     fontSize: 13,
     color: '#999',
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingTop: 60,
-    paddingHorizontal: 40,
-  },
-  emptyStateTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#000',
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 15,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 22,
   },
   notificationActions: {
     flexDirection: 'row',
@@ -279,3 +202,5 @@ const styles = StyleSheet.create({
     color: '#000',
   },
 });
+
+

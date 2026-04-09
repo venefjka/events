@@ -5,131 +5,143 @@ import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ActivitiesProvider } from "@/contexts/ActivitiesContext";
+import { ActivityRatingsProvider } from "@/contexts/ActivityRatingsContext";
+import { ActivityParticipationProvider } from "@/contexts/ActivityParticipationContext";
+import { QrTokenProvider } from "@/contexts/QrTokenContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { SubscriptionsProvider } from "@/contexts/SubscriptionsContext";
-import { View, ActivityIndicator, StyleSheet } from "react-native";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
+import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient();
 
 function RootLayoutNav() {
-  const { currentUser, isAuthReady } = useAuth();
-  const segments = useSegments();
-  const router = useRouter();
+    const { currentUser, isAuthReady } = useAuth();
+    const { theme } = useTheme();
+    const segments = useSegments();
+    const router = useRouter();
 
-  useEffect(() => {
-    if (!isAuthReady) return;
+    useEffect(() => {
+        if (!isAuthReady) return;
 
-    const inAuthGroup = segments[0] === 'auth' || segments[0] === 'register' || segments[0] === 'onboarding';
+        const inAuthGroup = segments[0] === 'auth' || segments[0] === 'register';
 
-    if (!currentUser && !inAuthGroup) {
-      router.replace('/auth');
-    } else if (currentUser && inAuthGroup) {
-      router.replace('/');
+        if (!currentUser && !inAuthGroup) {
+            router.replace('/auth');
+        } else if (currentUser && inAuthGroup) {
+            router.replace('/');
+        }
+    }, [currentUser, segments, isAuthReady, router]);
+
+    if (!isAuthReady) {
+        return (
+            <View style={[styles.loadingContainer, { backgroundColor: theme.colors.background }]}>
+                <ActivityIndicator size="large" color={theme.colors.primary} />
+            </View>
+        );
     }
-  }, [currentUser, segments, isAuthReady, router]);
 
-  if (!isAuthReady) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#000" />
-      </View>
+        <>
+            <StatusBar
+                barStyle={theme.isDark ? "light-content" : "dark-content"}
+                backgroundColor={theme.colors.background}
+                translucent={false}
+            />
+            <Stack screenOptions={{ headerBackTitle: "Назад" }}>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="auth" options={{ headerShown: false }} />
+                <Stack.Screen name="register" options={{ headerShown: false }} />
+                <Stack.Screen name="create-activity" options={{ headerShown: false }} />
+                <Stack.Screen
+                    name="activity/[id]"
+                    options={{
+                        presentation: "card",
+                        headerShown: true,
+                        title: "Активность"
+                    }}
+                />
+                <Stack.Screen
+                    name="filters"
+                    options={{
+                        presentation: "card",
+                        headerShown: false,
+                        title: "Фильтры"
+                    }}
+                />
+                <Stack.Screen
+                    name="user/[id]"
+                    options={{
+                        presentation: "card",
+                        headerShown: true,
+                        title: "Профиль"
+                    }}
+                />
+                <Stack.Screen
+                    name="qr-scan"
+                    options={{
+                        presentation: "modal",
+                        headerShown: true,
+                        title: "Сканировать QR"
+                    }}
+                />
+                <Stack.Screen
+                    name="rate-activity"
+                    options={{
+                        presentation: "modal",
+                        headerShown: true,
+                        title: "Оценить событие"
+                    }}
+                />
+                <Stack.Screen
+                    name="subscriptions"
+                    options={{
+                        presentation: "card",
+                        headerShown: false
+                    }}
+                />
+            </Stack>
+        </>
     );
-  }
-
-  return (
-    <Stack screenOptions={{ headerBackTitle: "Назад" }}>
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-      <Stack.Screen name="auth" options={{ headerShown: false }} />
-      <Stack.Screen name="register" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-      <Stack.Screen 
-        name="activity/[id]" 
-        options={{ 
-          presentation: "card",
-          headerShown: true,
-          title: "Активность"
-        }} 
-      />
-      <Stack.Screen 
-        name="create-activity" 
-        options={{ 
-          presentation: "modal",
-          headerShown: true,
-          title: "Создать активность"
-        }} 
-      />
-      <Stack.Screen 
-        name="filters" 
-        options={{ 
-          presentation: "modal",
-          headerShown: true,
-          title: "Фильтры"
-        }} 
-      />
-      <Stack.Screen 
-        name="user/[id]" 
-        options={{ 
-          presentation: "card",
-          headerShown: true,
-          title: "Профиль"
-        }} 
-      />
-      <Stack.Screen 
-        name="qr-scan" 
-        options={{ 
-          presentation: "modal",
-          headerShown: true,
-          title: "Сканировать QR"
-        }} 
-      />
-      <Stack.Screen 
-        name="rate-activity" 
-        options={{ 
-          presentation: "modal",
-          headerShown: true,
-          title: "Оценить событие"
-        }} 
-      />
-      <Stack.Screen 
-        name="subscriptions" 
-        options={{ 
-          presentation: "card",
-          headerShown: false
-        }} 
-      />
-    </Stack>
-  );
 }
 
 export default function RootLayout() {
-  useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    useEffect(() => {
+        SplashScreen.hideAsync();
+    }, []);
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
-        <AuthProvider>
-          <NotificationsProvider>
-            <SubscriptionsProvider>
-              <ActivitiesProvider>
-                <RootLayoutNav />
-              </ActivitiesProvider>
-            </SubscriptionsProvider>
-          </NotificationsProvider>
-        </AuthProvider>
-      </GestureHandlerRootView>
-    </QueryClientProvider>
-  );
+    return (
+        <QueryClientProvider client={queryClient}>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+                <ThemeProvider>
+                    <AuthProvider>
+                        <NotificationsProvider>
+                            <SubscriptionsProvider>
+                                <ActivitiesProvider>
+                                    <ActivityParticipationProvider>
+                                        <QrTokenProvider>
+                                            <ActivityRatingsProvider>
+                                                <RootLayoutNav />
+                                            </ActivityRatingsProvider>
+                                        </QrTokenProvider>
+                                    </ActivityParticipationProvider>
+                                </ActivitiesProvider>
+                            </SubscriptionsProvider>
+                        </NotificationsProvider>
+                    </AuthProvider>
+                </ThemeProvider>
+            </GestureHandlerRootView>
+        </QueryClientProvider>
+    );
 }
 
 const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-  },
+    loadingContainer: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#fff',
+    },
 });

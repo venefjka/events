@@ -13,11 +13,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Star, X } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivities } from '@/contexts/ActivitiesContext';
+import { useActivityRatings } from '@/contexts/ActivityRatingsContext';
+import { Avatar } from '@/components/ui/Avatar';
+import { useTheme } from '@/themes/useTheme';
+import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+
+// todo: сделать с нуля
 
 export default function RateActivityScreen() {
   const { activityId } = useLocalSearchParams<{ activityId: string }>();
   const { currentUser } = useAuth();
-  const { allActivities, rateActivity } = useActivities();
+  const { allActivities } = useActivities();
+  const { rateActivity, hasUserRated } = useActivityRatings();
+  const theme = useTheme();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
 
@@ -29,7 +37,7 @@ export default function RateActivityScreen() {
   }
 
   const hasAttended = activity.attendedUsers.includes(currentUser.id);
-  const hasRated = activity.ratings.some((r) => r.userId === currentUser.id);
+  const hasRated = hasUserRated(activity.id, currentUser.id);
 
   if (!hasAttended) {
     Alert.alert(
@@ -75,10 +83,12 @@ export default function RateActivityScreen() {
 
       <ScrollView style={styles.content}>
         <View style={styles.activityCard}>
-          <Text style={styles.activityIcon}>{activity.category.icon}</Text>
+          <View style={styles.activityIcon}>
+            {renderCategoryIcon(activity.category, theme.spacing.iconSizeLarge * 2)}
+          </View>
           <Text style={styles.activityTitle}>{activity.title}</Text>
           <Text style={styles.activityTime}>
-            {new Date(activity.startTime).toLocaleString('ru', {
+            {new Date(activity.startAt).toLocaleString('ru', {
               day: 'numeric',
               month: 'long',
               hour: '2-digit',
@@ -88,11 +98,12 @@ export default function RateActivityScreen() {
         </View>
 
         <View style={styles.organizerCard}>
-          <View style={styles.organizerAvatar}>
-            <Text style={styles.organizerAvatarText}>
-              {activity.organizer.name[0]}
-            </Text>
-          </View>
+          <Avatar
+            name={activity.organizer.name}
+            size="small"
+            imageUrl={activity.organizer.avatar}
+            style={styles.organizerAvatar}
+          />
           <View style={styles.organizerInfo}>
             <Text style={styles.organizerLabel}>Организатор</Text>
             <Text style={styles.organizerName}>{activity.organizer.name}</Text>
@@ -214,8 +225,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   activityIcon: {
-    fontSize: 48,
     marginBottom: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   activityTitle: {
     fontSize: 18,
@@ -246,11 +258,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  organizerAvatarText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-  },
+
   organizerInfo: {
     flex: 1,
   },
@@ -357,3 +365,4 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
 });
+

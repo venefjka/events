@@ -10,10 +10,26 @@ import {
 import { router, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { X, QrCode, Share2, Scan } from 'lucide-react-native';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQrTokens } from '@/contexts/QrTokenContext';
+import { Avatar } from '@/components/ui/Avatar';
+
+// todo: сделать с нуля
 
 export default function MyQRScreen() {
     const { currentUser } = useAuth();
+    const { getOrCreateToken, tokenTtlMs } = useQrTokens();
+
+    const tokenQuery = useQuery({
+        queryKey: ['qrToken', currentUser?.id],
+        queryFn: async () => {
+            if (!currentUser) return '';
+            return getOrCreateToken(currentUser.id);
+        },
+        enabled: Boolean(currentUser),
+        refetchInterval: Math.max(10000, Math.floor(tokenTtlMs * 0.5)),
+    });
 
     if (!currentUser) {
         router.back();
@@ -22,8 +38,9 @@ export default function MyQRScreen() {
 
     const handleShare = async () => {
         try {
+            const token = tokenQuery.data || (await getOrCreateToken(currentUser.id));
             await Share.share({
-                message: `Мой QR-код WeDo: ${currentUser.qrCode}`,
+                message: `Мой QR-код WeDo: ${token}`,
             });
         } catch (error) {
             console.error('Error sharing:', error);
@@ -50,18 +67,15 @@ export default function MyQRScreen() {
 
                 <View style={styles.content}>
                     <View style={styles.userInfo}>
-                        <View style={styles.avatar}>
-                            <Text style={styles.avatarText}>{currentUser.name[0]}</Text>
-                        </View>
+                        <Avatar name={currentUser.name} size="large" imageUrl={currentUser.avatar} />
                         <Text style={styles.userName}>{currentUser.name}</Text>
-                        <Text style={styles.userAge}>{currentUser.age} лет</Text>
                     </View>
 
                     <View style={styles.qrContainer}>
                         <View style={styles.qrPlaceholder}>
                             <QrCode size={200} color="#000" strokeWidth={1.5} />
                             <View style={styles.qrOverlay}>
-                                <Text style={styles.qrCode}>{currentUser.qrCode}</Text>
+                                <Text style={styles.qrCode}>{tokenQuery.data}</Text>
                             </View>
                         </View>
                     </View>
@@ -70,7 +84,7 @@ export default function MyQRScreen() {
                         <Text style={styles.infoTitle}>Как использовать</Text>
                         <Text style={styles.infoText}>
                             Покажите этот QR-код организатору события для отметки посещения.
-                            Каждый пользователь имеет уникальный статичный QR-код.
+                            QR-код обновляется примерно раз в минуту для защиты.
                         </Text>
                     </View>
 
@@ -85,7 +99,7 @@ export default function MyQRScreen() {
                     <View style={styles.codeDisplay}>
                         <Text style={styles.codeLabel}>Код для ручного ввода:</Text>
                         <View style={styles.codeBox}>
-                            <Text style={styles.codeText}>{currentUser.qrCode}</Text>
+                            <Text style={styles.codeText}>{tokenQuery.data}</Text>
                         </View>
                     </View>
                 </View>
@@ -138,20 +152,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 32,
     },
-    avatar: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#000',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginBottom: 12,
-    },
-    avatarText: {
-        fontSize: 32,
-        fontWeight: '700',
-        color: '#fff',
-    },
+
     userName: {
         fontSize: 24,
         fontWeight: '700',

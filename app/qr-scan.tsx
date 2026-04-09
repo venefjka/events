@@ -12,12 +12,21 @@ import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { QrCode, X } from 'lucide-react-native';
 import { useActivities } from '@/contexts/ActivitiesContext';
+import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useQrTokens } from '@/contexts/QrTokenContext';
+import { useTheme } from '@/themes/useTheme';
+import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+
+// todo: сделать с нуля
 
 export default function QRScanScreen() {
     const { activityId } = useLocalSearchParams<{ activityId?: string }>();
-    const { currentUser } = useAuth();
-    const { allActivities, markAttendance } = useActivities();
+    const { currentUser, localUsers } = useAuth();
+    const { allActivities } = useActivities();
+    const { markAttendance, getParticipationStatus } = useActivityParticipation();
+    const { resolveToken } = useQrTokens();
+    const theme = useTheme();
     const [manualCode, setManualCode] = useState('');
     const [selectedActivityId, setSelectedActivityId] = useState<string | null>(activityId || null);
 
@@ -30,17 +39,24 @@ export default function QRScanScreen() {
     }
 
 
-    const handleScanCode = (code: string) => {
+    const handleScanCode = async (code: string) => {
         if (activity) {
-            const userId = code.replace('user-', '').replace('-qr', '');
-            const participant = activity.currentParticipants.find((p) => p.qrCode === code);
+            const resolvedUserId = await resolveToken(code);
+            const legacyUser = localUsers.find((user) => user.qrCode === code);
+            const userId = resolvedUserId ?? legacyUser?.id;
+            const participant = localUsers.find((user) => user.id === userId);
 
-            if (!participant) {
+            if (!userId) {
                 Alert.alert('Ошибка', 'Пользователь не зарегистрирован на эту активность');
                 return;
             }
 
-            if (activity.attendedUsers.includes(userId)) {
+            const status = getParticipationStatus(activity.id, userId);
+            if (status !== 'accepted' && status !== 'attended') {
+                Alert.alert('Ошибка', 'Пользователь не зарегистрирован на эту активность');
+                return;
+            }
+            if (status === 'attended') {
                 Alert.alert('Внимание', 'Посещение уже отмечено для этого участника');
                 return;
             }
@@ -48,7 +64,7 @@ export default function QRScanScreen() {
             markAttendance(activity.id, userId);
             Alert.alert(
                 'Успешно',
-                `Посещение отмечено для ${participant.name}`,
+                `Посещение отмечено для ${participant?.name ?? userId}`,
                 [{ text: 'OK' }]
             );
             setManualCode('');
@@ -95,12 +111,12 @@ export default function QRScanScreen() {
                                     onPress={() => setSelectedActivityId(act.id)}
                                 >
                                     <View style={styles.activitySelectIcon}>
-                                        <Text style={styles.activitySelectIconText}>{act.category.icon}</Text>
+                                        {renderCategoryIcon(act.category, theme.spacing.iconSizeXLarge)}
                                     </View>
                                     <View style={styles.activitySelectInfo}>
                                         <Text style={styles.activitySelectTitle}>{act.title}</Text>
                                         <Text style={styles.activitySelectTime}>
-                                            {new Date(act.startTime).toLocaleString('ru', {
+                                            {new Date(act.startAt).toLocaleString('ru', {
                                                 day: 'numeric',
                                                 month: 'long',
                                                 hour: '2-digit',
@@ -157,10 +173,12 @@ export default function QRScanScreen() {
 
                 <View style={styles.content}>
                     <View style={styles.activityCard}>
-                        <Text style={styles.activityIcon}>{activity.category.icon}</Text>
+                        <View style={styles.activityIcon}>
+                            {renderCategoryIcon(activity.category, theme.spacing.iconSizeLarge * 2)}
+                        </View>
                         <Text style={styles.activityTitle}>{activity.title}</Text>
                         <Text style={styles.activityTime}>
-                            {new Date(activity.startTime).toLocaleString('ru', {
+                            {new Date(activity.startAt).toLocaleString('ru', {
                                 day: 'numeric',
                                 month: 'long',
                                 hour: '2-digit',
@@ -286,9 +304,6 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         marginRight: 16,
     },
-    activitySelectIconText: {
-        fontSize: 32,
-    },
     activitySelectInfo: {
         flex: 1,
         justifyContent: 'center',
@@ -333,8 +348,9 @@ const styles = StyleSheet.create({
         marginBottom: 24,
     },
     activityIcon: {
-        fontSize: 48,
         marginBottom: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     activityTitle: {
         fontSize: 18,
@@ -453,3 +469,4 @@ const styles = StyleSheet.create({
         color: '#666',
     },
 });
+

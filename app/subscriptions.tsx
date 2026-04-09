@@ -12,6 +12,9 @@ import { ArrowLeft, Star, Pin } from 'lucide-react-native';
 import { useSubscriptions } from '@/contexts/SubscriptionsContext';
 import { useActivities } from '@/contexts/ActivitiesContext';
 import { Activity, Subscription } from '../types';
+import { Avatar } from '@/components/ui/Avatar';
+
+// todo: перерисовать + refactor
 
 export default function SubscriptionsScreen() {
   const { subscriptions, togglePin, isPinned } = useSubscriptions();
@@ -99,9 +102,7 @@ export default function SubscriptionsScreen() {
                   onPress={() => router.push(`/user/${item.user.id}`)}
                 >
                   <View style={styles.userLeft}>
-                    <View style={styles.avatar}>
-                      <Text style={styles.avatarText}>{item.user.name[0]}</Text>
-                    </View>
+                    <Avatar name={item.user.name} size="small" imageUrl={item.user.avatar} />
                     <View style={styles.userInfo}>
                       <View style={styles.nameRow}>
                         <Text style={styles.userName}>{item.user.name}</Text>
@@ -109,10 +110,12 @@ export default function SubscriptionsScreen() {
                           <Pin size={14} color="#000" fill="#000" />
                         )}
                       </View>
-                      <Text style={styles.userAge}>{item.user.age} лет</Text>
+                      {typeof item.user.age === 'number' && (
+                        <Text style={styles.userAge}>{item.user.age} ???</Text>
+                      )}
                       <View style={styles.rating}>
                         <Star size={12} color="#000" fill="#000" />
-                        <Text style={styles.ratingText}>{item.user.rating.toFixed(1)}</Text>
+                        <Text style={styles.ratingText}>{(item.user.rating ?? 0).toFixed(1)}</Text>
                       </View>
                     </View>
                   </View>
@@ -224,19 +227,7 @@ const styles = StyleSheet.create({
     flex: 1,
     gap: 12,
   },
-  avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#fff',
-  },
+
   userInfo: {
     flex: 1,
   },

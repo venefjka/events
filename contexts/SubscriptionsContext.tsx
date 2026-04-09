@@ -1,4 +1,4 @@
-import createContextHook from '@nkzw/create-context-hook';
+﻿﻿import createContextHook from '@nkzw/create-context-hook';
 import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -12,6 +12,8 @@ export const [SubscriptionsProvider, useSubscriptions] = createContextHook(() =>
     const subscriptionsQuery = useQuery({
         queryKey: ['subscriptions', currentUser?.id],
         queryFn: async () => {
+            // TODO(backend): GET /subscriptions?userId=...
+            // Consider cursor pagination and pinned-only queries.
             if (!currentUser) return [];
             const stored = await AsyncStorage.getItem(`subscriptions-${currentUser.id}`);
             return stored ? JSON.parse(stored) : [];
@@ -21,6 +23,8 @@ export const [SubscriptionsProvider, useSubscriptions] = createContextHook(() =>
 
     const saveSubscriptionsMutation = useMutation({
         mutationFn: async (subscriptions: Subscription[]) => {
+            // TODO(backend): POST/DELETE /subscriptions and PATCH /subscriptions/:id
+            // Avoid sending full list; send only changes.
             if (!currentUser) return;
             await AsyncStorage.setItem(
                 `subscriptions-${currentUser.id}`,
@@ -94,3 +98,5 @@ export const [SubscriptionsProvider, useSubscriptions] = createContextHook(() =>
         isLoading: subscriptionsQuery.isLoading,
     };
 });
+
+

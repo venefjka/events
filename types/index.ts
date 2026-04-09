@@ -1,22 +1,60 @@
-export interface User {
+export type Gender = 'male' | 'female' | 'notgiven';
+export type SubcategoryId = string;
+
+export interface CityPlace {
+    settlement: string;
+    region: string;
+    country: string;
+    latitude: number;
+    longitude: number;
+    title?: string;
+}
+
+export interface UserPublic {
+    id: string;
+    name: string;
+    avatar?: string;
+    rating: number;
+    age?: number;
+    gender?: Gender;
+    cityPlace?: CityPlace;
+    attendanceHistory?: {
+        attended: number;
+        missed: number;
+    };
+    reviews?: Review[];
+    interests?: SubcategoryId[];
+}
+
+export interface UserPrivacySettings {
+    showAvatar: boolean;
+    showGender: boolean;
+    showCityPlace: boolean;
+    showInterests: boolean;
+    showBirthDate: boolean;
+    showAttendanceHistory: boolean;
+    showReviews: boolean;
+}
+
+export interface RememberedUser {
     id: string;
     name: string;
     email: string;
+    avatar?: string;
+    lastLoginAt?: string;
+}
+
+export interface UserRecord extends UserPublic {
+    avatar?: string;
+    email: string;
     password: string;
-    avatar: string;
-    age: number;
+    birthDate: string;
     rating: number;
-    gender: 'male' | 'female' | 'other';
-    interests: string[];
-    createdEventsCount: number;
-    joinedEventsCount: number;
-    reviews: Review[];
+    gender: Gender;
+    cityPlace: CityPlace;
+    interests: SubcategoryId[];
     qrCode: string;
-    attendanceHistory: {
-        attended: number;
-        missed: number;
-        cancelled: number;
-    };
+    privacy: UserPrivacySettings;
 }
 
 export interface Review {
@@ -29,73 +67,91 @@ export interface Review {
     activityId: string;
 }
 
-export interface Activity {
+export type ActivityFormat = 'online' | 'offline';
+
+export interface ActivityPreferences {
+    gender?: 'male' | 'female';
+    ageFrom?: number;
+    ageTo?: number;
+    level?: 'beginner' | 'intermediate' | 'advanced';
+    maxParticipants?: number;
+}
+
+export interface ActivityRecord {
     id: string;
     title: string;
     description: string;
-    category: ActivityCategory;
-    organizer: User;
+    categoryId: string;
+    subcategoryId?: SubcategoryId;
+    organizerId: string;
+    format?: 'online' | 'offline';
     location: Location;
-    date: string;
-    startTime: string;
-    endTime?: string;
-    maxParticipants: number;
-    currentParticipants: User[];
-    pendingRequests: User[];
-    attendedUsers: string[];
-    level: 'beginner' | 'intermediate' | 'advanced';
-    preferences: {
-        gender?: 'any' | 'male' | 'female' | 'mixed';
-        ageRange?: string;
-    };
-    repeat?: 'daily' | 'weekly' | 'weekends';
+    startAt: string;
+    endAt: string;
+    timeZone: string;
+    status: 'active' | 'cancelled';
+    preferences?: ActivityPreferences;
     requiresApproval: boolean;
-    photoUrl?: string;
+    photoUrls?: string[];
     price: number;
-    isFree: boolean;
-    ratings: ActivityRating[];
+    createdAt?: string;
+    updatedAt?: string;
 }
+
+export interface ActivityView extends ActivityRecord {
+    category: ActivityCategory;
+    subcategory?: SubCategory;
+    organizer: UserPublic;
+    currentParticipants: UserPublic[];
+    pendingRequests: UserPublic[];
+    attendedUsers: string[];
+    ratings?: ActivityRating[];
+}
+
+export type Activity = ActivityView;
 
 export interface Location {
     latitude: number;
     longitude: number;
     address: string;
     name?: string;
+    settlement?: string;
 }
+
+export type CategoryIconName =
+    | 'sport'
+    | 'creative'
+    | 'education'
+    | 'games'
+    | 'music'
+    | 'food'
+    | 'nature'
+    | 'cinema';
 
 export interface ActivityCategory {
     id: string;
     name: string;
-    icon: string;
+    icon: CategoryIconName;
     subcategories: SubCategory[];
+    hasLevel?: boolean;
 }
 
 export interface SubCategory {
     id: string;
     name: string;
-}
-
-export interface Message {
-    id: string;
-    chatId: string;
-    sender: User;
-    text: string;
-    timestamp: string;
-    read: boolean;
-}
-
-export interface Chat {
-    id: string;
-    type: 'activity' | 'personal';
-    activity?: Activity;
-    participants: User[];
-    lastMessage?: Message;
-    unreadCount: number;
+    hasLevel?: boolean;
 }
 
 export interface Notification {
     id: string;
-    type: 'request' | 'system' | 'reminder' | 'social' | 'request_approved' | 'request_rejected' | 'rate_request';
+    type:
+    | 'request'
+    | 'system'
+    | 'reminder'
+    | 'social'
+    | 'request_approved'
+    | 'request_rejected'
+    | 'rate_request';
     title: string;
     message: string;
     timestamp: string;
@@ -108,17 +164,25 @@ export interface Notification {
 }
 
 export interface FilterState {
-    categories: string[];
-    participantsRange: [number, number];
+    categoryId?: string;
+    subcategoryId?: string;
+    maxParticipants: number | null;
+    registrationType: 'any' | 'yes' | 'no';
     onlyAvailable: boolean;
-    level: ('beginner' | 'intermediate' | 'advanced')[];
-    distance: number;
-    gender: 'any' | 'male' | 'female' | 'mixed';
-    ageGroups: string[];
+    level: 'any' | 'beginner' | 'intermediate' | 'advanced';
+    gender: 'any' | 'male' | 'female';
+    format: 'online' | 'offline';
+    city: string;
+    ageFrom: number | null;
+    ageTo: number | null;
+    ageAny: boolean;
     timeSegment: TimeSegment | null;
+    dateFrom: string;
+    dateTo: string;
+    timeZoneRange: [number, number];
 }
 
-export type TimeSegment = 'morning' | 'afternoon' | 'evening' | 'now' | 'night' | 'tomorrow' | 'weekend';
+export type TimeSegment = 'morning' | 'afternoon' | 'evening' | 'now' | 'night';
 
 export interface ActivityRating {
     id: string;
@@ -129,8 +193,17 @@ export interface ActivityRating {
     timestamp: string;
 }
 
+export type ParticipationStatus = 'pending' | 'accepted' | 'attended' | 'rejected' | 'missed';
+
+export interface ActivityParticipation {
+    activityId: string;
+    userId: string;
+    status: ParticipationStatus;
+    createdAt: string;
+}
+
 export interface Subscription {
     userId: string;
     subscribedAt: string;
     isPinned: boolean;
-  }
+}

@@ -1,19 +1,23 @@
-import { Tabs } from "expo-router";
+import { useTheme } from "@/themes/useTheme";
+import { Tabs, usePathname } from "expo-router";
 import { Map, User, Bell, } from "lucide-react-native";
 import React from "react";
 
 export default function TabLayout() {
+    const theme = useTheme();
+    const path = usePathname();
+    const isIndex = path === "/";
     return (
         <Tabs
             screenOptions={{
-                tabBarActiveTintColor: "#000",
-                tabBarInactiveTintColor: "#999",
                 headerShown: false,
                 tabBarStyle: {
-                    backgroundColor: "#fff",
-                    borderTopWidth: 1,
-                    borderTopColor: "#e5e5e5",
+                    backgroundColor: theme.colors.background,
+                    borderTopWidth: theme.spacing.borderWidth,
+                    borderTopColor: isIndex ? theme.colors.background : theme.colors.borderLight,
                 },
+                tabBarActiveTintColor: theme.colors.primary,
+                tabBarInactiveTintColor: theme.colors.tertiary,
             }}
         >
             <Tabs.Screen
