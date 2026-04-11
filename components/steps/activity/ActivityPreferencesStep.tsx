@@ -59,7 +59,7 @@ export const ActivityPreferencesStep: React.FC<ActivityPreferencesStepProps> = (
   return (
     <View style={[styles.container, { padding: theme.spacing.screenPaddingHorizontal }]}>
       <View style={{ gap: theme.spacing.md }}>
-        <View style={[styles.inlineRow, { marginBottom: theme.spacing.lg, alignItems: 'center' }]}> 
+        <View style={[styles.inlineRow, { marginBottom: theme.spacing.lg, alignItems: 'center' }]}>
           <Text style={{
             ...theme.typography.label,
             color: theme.colors.text,
@@ -91,7 +91,7 @@ export const ActivityPreferencesStep: React.FC<ActivityPreferencesStepProps> = (
               label=""
               value={isPreferredAgeAny ? '' : String(ageFromValue)}
               onChangeText={(text) => applyAgeRange(text, String(ageToValue))}
-              placeholder={isPreferredAgeAny? "18" : "22"}
+              placeholder={"18"}
               keyboardType="number-pad"
               maxLength={3}
               style={{ width: '20%', marginBottom: 0 }}
@@ -103,7 +103,7 @@ export const ActivityPreferencesStep: React.FC<ActivityPreferencesStepProps> = (
               label=""
               value={isPreferredAgeAny ? '' : String(ageToValue)}
               onChangeText={(text) => applyAgeRange(String(ageFromValue), text)}
-              placeholder={isPreferredAgeAny ? "122" : "24"}
+              placeholder={"122"}
               keyboardType="number-pad"
               maxLength={3}
               style={{ width: '20%', marginBottom: 0 }}
@@ -113,13 +113,7 @@ export const ActivityPreferencesStep: React.FC<ActivityPreferencesStepProps> = (
             </Text>
             <Button
               title=''
-              onPress={() => {
-                if (isPreferredAgeAny) {
-                  updateData({ preferredAgeAny: false });
-                  return;
-                }
-                applyAgeRange('', '');
-              }}
+              onPress={() => { applyAgeRange('', ''); }}
               icon={<Asterisk color={isPreferredAgeAny ? theme.colors.background : theme.colors.textSecondary} />}
               fullWidth={false}
               size='small'
@@ -156,7 +150,7 @@ export const ActivityPreferencesStep: React.FC<ActivityPreferencesStepProps> = (
                 }
                 updateData({ maxParticipantsAny: false, maxParticipants: parsed });
               }}
-              placeholder={isMaxParticipantsAny ? "Не ограничивается" : "4"}
+              placeholder={"Не ограничивается"}
               keyboardType="number-pad"
               error={maxParticipantsError}
               maxLength={5}
@@ -165,10 +159,7 @@ export const ActivityPreferencesStep: React.FC<ActivityPreferencesStepProps> = (
             <Button
               title=''
               onPress={() => {
-                updateData({
-                  maxParticipantsAny: !isMaxParticipantsAny,
-                  maxParticipants: '',
-                });
+                updateData({ maxParticipantsAny: true, maxParticipants: '' });
               }}
               icon={<Infinity size={theme.spacing.iconSize + 2} color={isMaxParticipantsAny ? theme.colors.background : theme.colors.textSecondary} />}
               fullWidth={false}

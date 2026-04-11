@@ -70,20 +70,30 @@ export const normalizeActivityRecord = (record: any): ActivityRecord => {
     preferences.maxParticipants = record.maxParticipants;
   }
 
-  const location =
-    record.location ??
-    (record.address
+  const location = record.location
+    ? {
+      latitude: record.location.latitude ?? 0,
+      longitude: record.location.longitude ?? 0,
+      address: record.location.address ?? record.address ?? 'Online',
+      name: record.location.name,
+      settlement: record.location.settlement ?? record.settlement,
+      region: record.location.region ?? record.region,
+      country: record.location.country ?? record.country,
+    }
+    : record.address
       ? {
         latitude: record.latitude ?? 0,
         longitude: record.longitude ?? 0,
         address: record.address,
         settlement: record.settlement,
+        region: record.region,
+        country: record.country,
       }
       : {
         latitude: 0,
         longitude: 0,
         address: 'Online',
-      });
+      };
 
   return {
     id: record.id ?? `activity-${Date.now()}`,

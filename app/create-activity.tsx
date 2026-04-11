@@ -45,6 +45,8 @@ export default function CreateActivityScreen() {
       latitude: currentUser.cityPlace.latitude,
       longitude: currentUser.cityPlace.longitude,
       settlement: currentUser.cityPlace.settlement,
+      region: currentUser.cityPlace.region,
+      country: currentUser.cityPlace.country,
     },
     timeZone: defaultTimeZoneOption.id,
     timeZoneLabel: defaultTimeZoneOption.label,
@@ -134,6 +136,8 @@ export default function CreateActivityScreen() {
         longitude: data.location?.longitude ?? 0,
         address: data.address || 'Address not set',
         settlement: data.location?.settlement || currentUser?.cityPlace?.settlement,
+        region: data.location?.region || currentUser?.cityPlace?.region,
+        country: data.location?.country || currentUser?.cityPlace?.country,
       };
 
     const ageFrom = data.preferredAgeAny ? undefined : Number(data.preferredAgeFrom) || undefined;

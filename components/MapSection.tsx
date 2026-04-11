@@ -1,4 +1,4 @@
-﻿import React, { useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { Animated, TouchableOpacity, StyleSheet, View } from 'react-native';
 import MapView, { PROVIDER_GOOGLE } from 'react-native-maps';
 import { ChevronUp, ChevronDown } from 'lucide-react-native';
@@ -14,6 +14,8 @@ interface MapSectionProps {
     isMapExpanded: boolean;
     mapHeight: Animated.Value;
     selectedMarkerId: string | null;
+    centerLatitude?: number | null;
+    centerLongitude?: number | null;
     onMarkerPress: (activityId: string) => void;
     onClosePreview: () => void;
     onToggleExpand: () => void;
@@ -24,6 +26,8 @@ export const MapSection: React.FC<MapSectionProps> = ({
     isMapExpanded,
     mapHeight,
     selectedMarkerId,
+    centerLatitude,
+    centerLongitude,
     onMarkerPress,
     onClosePreview,
     onToggleExpand,
@@ -35,12 +39,28 @@ export const MapSection: React.FC<MapSectionProps> = ({
     const selectedActivity = activities.find((a) => a.id === selectedMarkerId);
     const cityPlace = currentUser?.cityPlace;
 
-    const initialRegion = {
-        latitude: cityPlace?.latitude ?? 55.751244,
-        longitude: cityPlace?.longitude ?? 37.618423,
+    const initialRegion = useMemo(() => ({
+        latitude: centerLatitude ?? cityPlace?.latitude ?? 55.751244,
+        longitude: centerLongitude ?? cityPlace?.longitude ?? 37.618423,
         latitudeDelta: 0.2,
         longitudeDelta: 0.1,
-    };
+    }), [centerLatitude, centerLongitude, cityPlace?.latitude, cityPlace?.longitude]);
+
+    useEffect(() => {
+        const latitude = centerLatitude ?? cityPlace?.latitude;
+        const longitude = centerLongitude ?? cityPlace?.longitude;
+
+        if (latitude == null || longitude == null) {
+            return;
+        }
+
+        mapRef.current?.animateToRegion({
+            latitude,
+            longitude,
+            latitudeDelta: 0.2,
+            longitudeDelta: 0.1,
+        }, 300);
+    }, [centerLatitude, centerLongitude, cityPlace?.latitude, cityPlace?.longitude]);
 
     return (
         <Animated.View style={[styles.mapContainer, { height: mapHeight, backgroundColor: theme.colors.background, }]}>
@@ -59,7 +79,6 @@ export const MapSection: React.FC<MapSectionProps> = ({
                             longitude: activity.location.longitude,
                         }}
                         category={activity.category}
-                        // badgeCount={activity.currentParticipants.length}
                         onPress={() => onMarkerPress(activity.id)}
                     />
                 ))}
@@ -118,4 +137,3 @@ const styles = StyleSheet.create({
         elevation: 4,
     },
 });
-

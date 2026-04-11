@@ -16,7 +16,7 @@ import { useActivities } from '@/contexts/ActivitiesContext';
 import { useActivityRatings } from '@/contexts/ActivityRatingsContext';
 import { Avatar } from '@/components/ui/Avatar';
 import { useTheme } from '@/themes/useTheme';
-import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 
 // todo: сделать с нуля
 

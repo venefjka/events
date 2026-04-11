@@ -16,7 +16,7 @@ import { useActivityParticipation } from '@/contexts/ActivityParticipationContex
 import { useAuth } from '@/contexts/AuthContext';
 import { useQrTokens } from '@/contexts/QrTokenContext';
 import { useTheme } from '@/themes/useTheme';
-import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 
 // todo: сделать с нуля
 

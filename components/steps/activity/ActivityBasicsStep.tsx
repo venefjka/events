@@ -4,7 +4,7 @@ import { useTheme } from '@/themes/useTheme';
 import { FormField } from '@/components/forms/FormField';
 import { DropdownChipSelector } from '@/components/forms/DropdownChipSelector';
 import { ActivityCategory } from '@/types';
-import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 
 interface ActivityBasicsStepProps {
   data: any;

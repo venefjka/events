@@ -161,6 +161,73 @@ export const buildDateTimeWithTimeZone = (
 };
 
 /**
+ * Возвращает локальные части даты/времени для указанной таймзоны.
+ */
+export const getDateTimePartsInTimeZone = (
+  date: Date,
+  timeZone?: string
+): { year: number; month: number; day: number; hour: number; minute: number; second: number } | null => {
+  if (Number.isNaN(date.getTime())) return null;
+
+  if (!timeZone) {
+    return {
+      year: date.getFullYear(),
+      month: date.getMonth() + 1,
+      day: date.getDate(),
+      hour: date.getHours(),
+      minute: date.getMinutes(),
+      second: date.getSeconds(),
+    };
+  }
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    hour12: false,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
+
+  const parts = formatter.formatToParts(date);
+  const map = new Map(parts.map((part) => [part.type, part.value]));
+  const year = Number(map.get('year'));
+  const month = Number(map.get('month'));
+  const day = Number(map.get('day'));
+  const hour = Number(map.get('hour'));
+  const minute = Number(map.get('minute'));
+  const second = Number(map.get('second'));
+
+  if ([year, month, day, hour, minute, second].some((value) => Number.isNaN(value))) {
+    return null;
+  }
+
+  return { year, month, day, hour, minute, second };
+};
+
+/**
+ * Возвращает ключ даты `YYYY-MM-DD` в указанной таймзоне.
+ */
+export const getDateKeyInTimeZone = (date: Date, timeZone?: string): string | null => {
+  const parts = getDateTimePartsInTimeZone(date, timeZone);
+  if (!parts) return null;
+
+  return `${parts.year}-${String(parts.month).padStart(2, '0')}-${String(parts.day).padStart(2, '0')}`;
+};
+
+/**
+ * Возвращает количество минут от начала суток в указанной таймзоне.
+ */
+export const getMinutesOfDayInTimeZone = (date: Date, timeZone?: string): number | null => {
+  const parts = getDateTimePartsInTimeZone(date, timeZone);
+  if (!parts) return null;
+
+  return parts.hour * 60 + parts.minute;
+};
+
+/**
  * Форматирует смещение таймзоны в вид `UTC+3` или `UTC+5:30`.
  */
 export const formatTimeZoneOffset = (dateString: string, timeZone?: string): string | undefined => {

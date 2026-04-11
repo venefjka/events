@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Marker } from 'react-native-maps';
 import Svg, { Path, Circle } from 'react-native-svg';
 import { useTheme } from '@/themes/useTheme';
-import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 import { buildPinGeometry } from '@/utils/pinGeometry';
 import { ActivityCategory } from '@/types';
 

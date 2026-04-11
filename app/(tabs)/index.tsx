@@ -30,7 +30,7 @@ import { clearAllStorageKeys } from '@/utils/storage';
 
 export default function ExploreScreen() {
     const { currentUser } = useAuth();
-    const { activities, selectedTimeSegment, setSelectedTimeSegment, savedActivities, allActivities } = useActivities();
+    const { activities, selectedTimeSegment, setSelectedTimeSegment, savedActivities, allActivities, filters } = useActivities();
     const theme = useTheme();
     const commonStyles = createCommonStyles(theme);
     const [searchQuery, setSearchQuery] = useState('');
@@ -142,6 +142,8 @@ export default function ExploreScreen() {
                 isMapExpanded={isMapExpanded}
                 mapHeight={mapHeight}
                 selectedMarkerId={selectedMarkerId}
+                centerLatitude={filters.selectedCity?.latitude}
+                centerLongitude={filters.selectedCity?.longitude}
                 onMarkerPress={handleMarkerPress}
                 onClosePreview={handleClosePreview}
                 onToggleExpand={toggleMapHeight}

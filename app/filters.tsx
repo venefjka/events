@@ -1,28 +1,27 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
-  TouchableOpacity,
   Switch,
   useWindowDimensions,
 } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useActivities } from '@/contexts/ActivitiesContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { categories } from '@/constants/categories';
 import { DropdownInputSelector } from '@/components/forms/DropdownInputSelector';
 import { DropdownChipSelector } from '@/components/forms/DropdownChipSelector';
 import { ExpandableTabBar } from '@/components/ui/ExpandableTabs';
-import { TimeSegmentPicker } from '@/components/TimeSegmentPicker';
-import { TIME_SEGMENTS } from '@/constants/timeSegments';
 import { getUtcOffsetOptions } from '@/utils/timezone';
 import { useTheme } from '@/themes/useTheme';
 import { ActivityScheduleCalendar } from '@/components/forms/ActivityScheduleCalendar';
 import { parseDateInput, formatDateInputFromDateType } from '@/utils/date';
-import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
-import { Asterisk, Infinity } from 'lucide-react-native';
+import { formatDateInput, formatTimeInput } from '@/utils/formatInput';
+import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
+import { Asterisk, BanknoteX, Infinity, RussianRuble } from 'lucide-react-native';
 import {
   ApprovalFilterOption,
   GenderOption,
@@ -37,12 +36,36 @@ import { CitySearchResult, verifyCityByNominatim } from '@/utils/verifyCity';
 import { FormField } from '@/components/forms/FormField';
 import { Button } from '@/components/ui/Button';
 import { Header } from '@/components/ui/Header';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 export default function FiltersScreen() {
   const { filters, setFilters, setSelectedTimeSegment } = useActivities();
+  const { currentUser } = useAuth();
   const theme = useTheme();
   const { width: windowWidth } = useWindowDimensions();
-  const [localFilters, setLocalFilters] = useState(filters);
+  const profileCity = currentUser?.cityPlace?.settlement?.trim() ?? '';
+  const profileCityTitle = [
+    currentUser?.cityPlace?.settlement,
+    currentUser?.cityPlace?.region,
+    currentUser?.cityPlace?.country,
+  ].filter(Boolean).join(', ');
+  const profileSelectedCity = currentUser?.cityPlace
+    ? {
+        ...currentUser.cityPlace,
+        title: currentUser.cityPlace.title ?? profileCityTitle,
+      }
+    : null;
+  const [localFilters, setLocalFilters] = useState(() => ({
+    ...filters,
+    cityQuery:
+      filters.format === 'offline' && !filters.selectedCity && !filters.cityQuery?.trim()
+        ? profileCityTitle || profileCity
+        : filters.cityQuery,
+    selectedCity:
+      filters.format === 'offline' && !filters.selectedCity
+        ? profileSelectedCity
+        : filters.selectedCity,
+  }));
   const timeZoneOptions = useMemo(() => getUtcOffsetOptions(), []);
   const minTimeZoneValue = String(localFilters.timeZoneRange[0]);
   const maxTimeZoneValue = String(localFilters.timeZoneRange[1]);
@@ -50,6 +73,11 @@ export default function FiltersScreen() {
 
   const [cityError, setCityError] = useState<string | undefined>(undefined);
   const [citySuggestions, setCitySuggestions] = useState<CitySearchResult[]>([]);
+  const [isCityConfirmed, setIsCityConfirmed] = useState(
+    Boolean(filters.selectedCity || (filters.format === 'offline' && profileSelectedCity))
+  );
+  const citySearchRequestId = useRef(0);
+  const didInitProfileCityRef = useRef(false);
 
   const selectedCategoryId = localFilters.categoryId ?? '';
   const selectedCategory = categories.find((cat) => cat.id === selectedCategoryId);
@@ -64,6 +92,7 @@ export default function FiltersScreen() {
   const genderId: GenderOption = localFilters.gender ?? 'any';
   const levelId: LevelOption = localFilters.level ?? 'any';
   const registrationId: ApprovalFilterOption = localFilters.registrationType ?? 'any';
+  const isPriceAny = localFilters.priceTo == null;
   const isMaxParticipantsAny = localFilters.maxParticipants == null;
   const isAgeAny = Boolean(localFilters.ageAny);
   const ageFromValue = localFilters.ageFrom ?? '';
@@ -78,9 +107,62 @@ export default function FiltersScreen() {
     [localFilters.dateTo]
   );
 
-  // const sectionTitleStyle = {
-  //   ...theme.typography.h4, color: theme.colors.text, marginBottom: theme.spacing.lg 
-  // };
+  const handleStartDateInput = React.useCallback((text: string) => {
+    const nextValue = formatDateInput(text);
+    setLocalFilters((prev) => {
+      const nextStartDate = parseDateInput(nextValue);
+      const currentEndDate = parseDateInput(prev.dateTo ?? '');
+
+      if (nextStartDate && currentEndDate && nextStartDate > currentEndDate) {
+        return {
+          ...prev,
+          dateFrom: nextValue,
+          dateTo: nextValue,
+        };
+      }
+
+      return {
+        ...prev,
+        dateFrom: nextValue,
+      };
+    });
+  }, []);
+
+  const handleEndDateInput = React.useCallback((text: string) => {
+    const nextValue = formatDateInput(text);
+    setLocalFilters((prev) => {
+      const currentStartDate = parseDateInput(prev.dateFrom ?? '');
+      const nextEndDate = parseDateInput(nextValue);
+
+      if (currentStartDate && nextEndDate && nextEndDate < currentStartDate) {
+        return {
+          ...prev,
+          dateFrom: nextValue,
+          dateTo: nextValue,
+        };
+      }
+
+      return {
+        ...prev,
+        dateTo: nextValue,
+      };
+    });
+  }, []);
+
+  const handleStartTimeInput = React.useCallback((text: string) => {
+    setLocalFilters((prev) => ({
+      ...prev,
+      timeFrom: formatTimeInput(text),
+    }));
+  }, []);
+
+  const handleEndTimeInput = React.useCallback((text: string) => {
+    setLocalFilters((prev) => ({
+      ...prev,
+      timeTo: formatTimeInput(text),
+    }));
+  }, []);
+
   const sectionStyle = {
     paddingHorizontal: theme.spacing.screenPaddingHorizontal,
     paddingVertical: theme.spacing.xxl,
@@ -98,9 +180,90 @@ export default function FiltersScreen() {
   const approvalItems = useMemo(() => getApprovalFilterItems(), []);
   const formatItems = useMemo(() => getFormatItems(), []);
 
-  const handleApply = () => {
-    if (localFilters.format === 'offline' && !localFilters.city?.trim()) {
+  useEffect(() => {
+    if (didInitProfileCityRef.current || !profileCity) {
+      return;
+    }
+
+    let didApplyProfileCity = false;
+
+    setLocalFilters((prev) => {
+      if (prev.format !== 'offline' || prev.selectedCity || prev.cityQuery?.trim()) {
+        return prev;
+      }
+
+      didApplyProfileCity = true;
+
+      return {
+        ...prev,
+        cityQuery: profileCityTitle || profileCity,
+        selectedCity: profileSelectedCity,
+      };
+    });
+
+    if (didApplyProfileCity) {
+      setIsCityConfirmed(true);
+      setCityError(undefined);
+    }
+
+    didInitProfileCityRef.current = true;
+  }, [profileCity, profileCityTitle, profileSelectedCity]);
+  const searchCities = React.useCallback(async (query: string) => {
+    const normalizedQuery = query.trim();
+    const requestId = ++citySearchRequestId.current;
+    if (!normalizedQuery) {
+      setCitySuggestions([]);
+      setCityError(undefined);
+      return;
+    }
+    if (normalizedQuery.length < 2) {
+      setCitySuggestions([]);
+      setCityError(undefined);
+      return;
+    }
+    try {
+      const places = await verifyCityByNominatim(normalizedQuery);
+      if (requestId !== citySearchRequestId.current) {
+        return;
+      }
+      setCitySuggestions(places);
+      if (!places.length) {
+        setCityError('Не удалось найти населённый пункт, проверьте написание');
+        return;
+      }
+      setCityError(undefined);
+    } catch (e) {
+      if (requestId !== citySearchRequestId.current) {
+        return;
+      }
+      setCitySuggestions([]);
+      setCityError('Ошибка поиска, попробуйте снова');
+    }
+  }, []);
+  const validateCitySelection = React.useCallback(() => {
+    if (localFilters.format !== 'offline') {
+      setCityError(undefined);
+      return true;
+    }
+    const cityQuery = (localFilters.cityQuery ?? '').trim();
+    if (!cityQuery) {
       setCityError('Укажите город для оффлайн-событий');
+      return false;
+    }
+    if (cityQuery.length < 2) {
+      setCityError('Введите город (минимум 2 символа)');
+      return false;
+    }
+    if (!isCityConfirmed) {
+      setCityError('Выберите город из списка');
+      return false;
+    }
+    setCityError(undefined);
+    return true;
+  }, [isCityConfirmed, localFilters.cityQuery, localFilters.format]);
+
+  const handleApply = () => {
+    if (!validateCitySelection()) {
       return;
     }
     setFilters(localFilters);
@@ -127,6 +290,9 @@ export default function FiltersScreen() {
     const resetFilters = {
       categoryId: '',
       subcategoryId: '',
+      priceTo: null,
+      cityQuery: '',
+      selectedCity: null,
       maxParticipants: null,
       registrationType: 'any' as const,
       onlyAvailable: false,
@@ -138,51 +304,36 @@ export default function FiltersScreen() {
       timeSegment: null,
       dateFrom: '',
       dateTo: '',
+      timeFrom: '',
+      timeTo: '',
       timeZoneRange: [-12, 14] as [number, number],
       format: 'offline' as const,
-      city: '',
     };
     setLocalFilters(resetFilters);
     setFilters(resetFilters);
+    setSelectedTimeSegment(null);
     setCitySuggestions([]);
     setCityError(undefined);
+    setIsCityConfirmed(Boolean(profileCity));
+    router.replace('/');
   };
 
   const handleSelectCity = (place: CitySearchResult) => {
-    setLocalFilters((prev) => ({ ...prev, city: place.settlement }));
+    setLocalFilters((prev) => ({
+      ...prev,
+      cityQuery: place.title,
+      selectedCity: {
+        settlement: place.settlement,
+        region: place.region ?? '',
+        country: place.country,
+        latitude: place.lat,
+        longitude: place.lon,
+        title: place.title,
+      },
+    }));
+    setIsCityConfirmed(true);
     setCitySuggestions([]);
     setCityError(undefined);
-  };
-
-  const onCheckCity = async () => {
-    const q = (localFilters.city ?? '').trim();
-
-    setCityError(undefined);
-    setCitySuggestions([]);
-
-    if (!q) return;
-    if (q.length < 2) {
-      setCityError('Введите город (минимум 2 символа)');
-      return;
-    }
-
-    try {
-      const places = await verifyCityByNominatim(q);
-
-      if (!places.length) {
-        setCityError('Не удалось найти населенный пункт, проверьте написание');
-        return;
-      }
-
-      if (places.length === 1) {
-        handleSelectCity(places[0]);
-        return;
-      }
-
-      setCitySuggestions(places);
-    } catch (e) {
-      setCityError('Ошибка поиска, попробуйте снова');
-    }
   };
 
   const isOffline = localFilters.format === 'offline';
@@ -197,10 +348,14 @@ export default function FiltersScreen() {
         showBackButton
         borderBottom={false}
       />
-      <ScrollView>
+      <KeyboardAwareScrollView
+        enableOnAndroid
+        extraScrollHeight={-70}
+        keyboardShouldPersistTaps="handled"
+        enableResetScrollToCoords={false}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={sectionStyle}>
-          {/* <Text style={sectionTitleStyle}>Что?</Text> */}
-
           <View style={styles.inlineRow}>
             <View style={{ width: !selectedCategory ? '100%' : '25%' }}>
               <DropdownChipSelector
@@ -251,22 +406,32 @@ export default function FiltersScreen() {
         <View style={dividerStyle} />
 
         <View style={sectionStyle}>
-          {/* <Text style={sectionTitleStyle}>Где?</Text> */}
-
           <View>
             <Text style={subTitleStyle}>Формат проведения</Text>
             <ExpandableTabBar<'online' | 'offline'>
               items={formatItems}
               activeId={localFilters.format}
               onChange={(id) => {
+                const nextSelectedCity = id === 'online'
+                  ? null
+                  : (localFilters.selectedCity ?? profileSelectedCity);
+                const nextCityQuery = id === 'online'
+                  ? ''
+                  : (localFilters.cityQuery?.trim() || nextSelectedCity?.title || profileCityTitle || profileCity);
+
                 setLocalFilters((prev) => ({
                   ...prev,
                   format: id,
-                  city: id === 'online' ? '' : prev.city,
+                  cityQuery: nextCityQuery,
+                  selectedCity: nextSelectedCity,
                 }));
                 if (id === 'online') {
                   setCityError(undefined);
                   setCitySuggestions([]);
+                  setIsCityConfirmed(false);
+                } else {
+                  setCityError(undefined);
+                  setIsCityConfirmed(Boolean(nextSelectedCity));
                 }
               }}
               circleSize={theme.spacing.iconButtonHeight}
@@ -280,9 +445,15 @@ export default function FiltersScreen() {
             <>
               <DropdownInputSelector
                 label="Город"
-                value={localFilters.city ?? ''}
+                value={localFilters.cityQuery ?? ''}
                 onChangeText={(text) => {
-                  setLocalFilters((prev) => ({ ...prev, city: text }));
+                  setLocalFilters((prev) => ({
+                    ...prev,
+                    cityQuery: text,
+                    selectedCity: null,
+                  }));
+                  setIsCityConfirmed(false);
+                  setCitySuggestions([]);
                   setCityError(undefined);
                 }}
                 placeholder="Москва"
@@ -295,11 +466,18 @@ export default function FiltersScreen() {
                   const selected = citySuggestions.find((place) => String(place.placeId) === item.id);
                   if (selected) handleSelectCity(selected);
                 }}
-                onBlur={onCheckCity}
+                onBlur={() => {
+                  if (!isCityConfirmed) {
+                    searchCities(localFilters.cityQuery ?? '');
+                  }
+                }}
                 onFocus={() => {
-                  setCitySuggestions([]);
                   setCityError(undefined);
                 }}
+                onDropdownClose={() => {
+                  validateCitySelection();
+                }}
+                openOnBlurSuggestions
                 maxDropdownHeight={200}
                 error={cityError}
               />
@@ -365,15 +543,23 @@ export default function FiltersScreen() {
         <View style={dividerStyle} />
 
         <View style={sectionStyle}>
-          {/* <Text style={sectionTitleStyle}>Когда?</Text> */}
-
           <View style={{ gap: theme.spacing.lg }}>
             <ActivityScheduleCalendar
-              variant="picker-only"
+              variant="inputs"
+              duration="period"
               isOpen={isCalendarOpen}
               onToggle={setIsCalendarOpen}
               startDate={startDate}
               endDate={endDate}
+              startDateValue={localFilters.dateFrom ?? ''}
+              endDateValue={localFilters.dateTo ?? ''}
+              startTimeValue={localFilters.timeFrom ?? ''}
+              endTimeValue={localFilters.timeTo ?? ''}
+              onStartDateInput={handleStartDateInput}
+              onEndDateInput={handleEndDateInput}
+              onStartTimeInput={handleStartTimeInput}
+              onEndTimeInput={handleEndTimeInput}
+              onSingleChange={() => undefined}
               onRangeChange={({ startDate: nextStart, endDate: nextEnd }) => {
                 const start = formatDateInputFromDateType(nextStart);
                 if (!start) {
@@ -392,21 +578,62 @@ export default function FiltersScreen() {
                 }));
               }}
             />
-
-            {/* <TimeSegmentPicker
-              segments={TIME_SEGMENTS}
-              selectedSegment={localFilters.timeSegment}
-              onSegmentSelect={(segment) =>
-                setLocalFilters((prev) => ({ ...prev, timeSegment: segment }))
-              }
-            /> */}
           </View>
         </View>
 
         <View style={dividerStyle} />
 
         <View style={sectionStyle}>
-          {/* <Text style={sectionTitleStyle}>Требования к участникам</Text> */}
+        <View>
+            <Text style={subTitleStyle}>Стоимость участия до</Text>
+            <View style={styles.inlineRow}>
+              <FormField
+                label=""
+                value={!isPriceAny ? String(localFilters.priceTo ?? '') : ''}
+                onChangeText={(text) => {
+                  const numeric = text.replace(/\D/g, '').slice(0, 6);
+                  if (!numeric) {
+                    setLocalFilters((prev) => ({ ...prev, priceTo: null }));
+                    return;
+                  }
+                  setLocalFilters((prev) => ({ ...prev, priceTo: parseInt(numeric, 10) || null }));
+                }}
+                placeholder={'1 000 000'}
+                keyboardType="number-pad"
+                maxLength={6}
+                style={{ width: '80%', marginBottom: 0 }}
+                rightIcon={
+                  isPriceAny ? undefined : <RussianRuble size={theme.spacing.iconSize} color={theme.colors.disabled} />
+                }
+              />
+              <Button
+                title=""
+                onPress={() =>
+                  setLocalFilters((prev) => ({
+                    ...prev,
+                    priceTo: null,
+                  }))
+                }
+                icon={
+                  <BanknoteX
+                    size={theme.spacing.iconSize}
+                    color={isPriceAny ? theme.colors.background : theme.colors.textSecondary}
+                  />
+                }
+                fullWidth={false}
+                size="small"
+                style={{
+                  width: theme.spacing.inputHeight,
+                  height: theme.spacing.inputHeight,
+                  borderRadius: theme.spacing.radiusRound,
+                  backgroundColor: isPriceAny
+                    ? theme.colors.primary
+                    : theme.colors.surfaceVariant,
+                }}
+                textStyle={{ display: 'none' }}
+              />
+            </View>
+          </View>
 
           <View>
             <Text style={subTitleStyle}>Тип регистрации</Text>
@@ -469,9 +696,9 @@ export default function FiltersScreen() {
             </View>
           </View>
 
-          {/* <View style={styles.inlineRow}>
+          <View style={styles.inlineRow}>
             <Text style={subTitleStyle}>
-              Только есть свободные места
+              Показывать только{'\n'}доступные для участия
             </Text>
             <Switch
               value={localFilters.onlyAvailable}
@@ -481,7 +708,7 @@ export default function FiltersScreen() {
               trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
               thumbColor={theme.colors.background}
             />
-          </View> */}
+          </View>
         </View>
 
         <View style={dividerStyle} />
@@ -511,7 +738,7 @@ export default function FiltersScreen() {
                 label=""
                 value={isAgeAny ? '' : String(ageFromValue)}
                 onChangeText={(text) => applyAgeRange(text, String(ageToValue))}
-                placeholder={isAgeAny ? "18" : "22"}
+                placeholder={"18"}
                 keyboardType="number-pad"
                 maxLength={3}
                 style={{ width: '20%', marginBottom: 0 }}
@@ -523,7 +750,7 @@ export default function FiltersScreen() {
                 label=""
                 value={isAgeAny ? '' : String(ageToValue)}
                 onChangeText={(text) => applyAgeRange(String(ageFromValue), text)}
-                placeholder={isAgeAny ? "122" : "24"}
+                placeholder={"122"}
                 keyboardType="number-pad"
                 maxLength={3}
                 style={{ width: '20%', marginBottom: 0 }}
@@ -534,10 +761,6 @@ export default function FiltersScreen() {
               <Button
                 title=""
                 onPress={() => {
-                  if (isAgeAny) {
-                    setLocalFilters((prev) => ({ ...prev, ageAny: false }));
-                    return;
-                  }
                   applyAgeRange('', '');
                 }}
                 icon={<Asterisk color={isAgeAny ? theme.colors.background : theme.colors.textSecondary} />}
@@ -571,7 +794,7 @@ export default function FiltersScreen() {
             </View>
           )}
         </View>
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View
         style={[
@@ -611,4 +834,3 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 });
-

@@ -54,6 +54,8 @@ export const ActivityLocationStep: React.FC<ActivityLocationStepProps> = ({
           latitude: fallbackLocation.latitude,
           longitude: fallbackLocation.longitude,
           settlement: fallbackLocation.settlement,
+          region: fallbackLocation.region,
+          country: fallbackLocation.country,
         },
       });
       setRegion((prev) => ({
@@ -147,6 +149,8 @@ export const ActivityLocationStep: React.FC<ActivityLocationStepProps> = ({
         latitude,
         longitude,
         settlement: data.location?.settlement || '',
+        region: data.location?.region || '',
+        country: data.location?.country || '',
       },
       address: 'Идет поиск адреса',
     });
@@ -170,6 +174,8 @@ export const ActivityLocationStep: React.FC<ActivityLocationStepProps> = ({
           latitude,
           longitude,
           settlement: getSettlementFromPlace(data) || data?.address?.city || '',
+          region: data?.address?.state || data?.address?.region || data?.address?.state_district || '',
+          country: data?.address?.country || '',
         },
         address: formatShortAddress(data),
       });

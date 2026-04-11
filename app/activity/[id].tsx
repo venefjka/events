@@ -15,7 +15,7 @@ import { useTheme } from '@/themes/useTheme';
 import { createCommonStyles } from '@/styles/common';
 import { formatActivityDate, formatTimeZoneOffset } from '@/utils/date';
 import { getHoursUntilEvent } from '@/utils/date';
-import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 
 export default function ActivityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();

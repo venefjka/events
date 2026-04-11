@@ -116,6 +116,8 @@ export interface Location {
     address: string;
     name?: string;
     settlement?: string;
+    region?: string;
+    country?: string;
 }
 
 export type CategoryIconName =
@@ -166,19 +168,23 @@ export interface Notification {
 export interface FilterState {
     categoryId?: string;
     subcategoryId?: string;
+    priceTo: number | null;
+    cityQuery: string;
+    selectedCity: CityPlace | null;
     maxParticipants: number | null;
     registrationType: 'any' | 'yes' | 'no';
     onlyAvailable: boolean;
     level: 'any' | 'beginner' | 'intermediate' | 'advanced';
     gender: 'any' | 'male' | 'female';
     format: 'online' | 'offline';
-    city: string;
     ageFrom: number | null;
     ageTo: number | null;
     ageAny: boolean;
     timeSegment: TimeSegment | null;
     dateFrom: string;
     dateTo: string;
+    timeFrom: string;
+    timeTo: string;
     timeZoneRange: [number, number];
 }
 

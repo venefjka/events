@@ -89,7 +89,7 @@ export const ActivityDetailsStep: React.FC<ActivityDetailsStepProps> = ({
                 }
                 updateData({ isFree: false, price: parseInt(numeric, 10) || '' });
               }}
-              placeholder={isFree ? "Бесплатно" : "600"}
+              placeholder={"Бесплатно"}
               keyboardType="number-pad"
               autoComplete="off"
               textContentType="none"
@@ -100,7 +100,7 @@ export const ActivityDetailsStep: React.FC<ActivityDetailsStepProps> = ({
             />
             <Button
               title=''
-              onPress={() => updateData({ isFree: !isFree, price: '' })}
+              onPress={() => updateData({ isFree: true, price: '' })}
               icon={<BanknoteX size={theme.spacing.iconSize} color={isFree ? theme.colors.background : theme.colors.textSecondary} />}
               fullWidth={false}
               size='small'

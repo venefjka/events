@@ -19,7 +19,7 @@ import { X, MapPin, Clock, Users, Sprout, Flower2, TreeDeciduous, Monitor, Image
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useTheme } from '../../themes/useTheme';
-import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 import { formatActivityDate, formatDateOnly, formatTimeOnly, formatTimeZoneOffset } from '../../utils/date';
 import { router } from 'expo-router';
 

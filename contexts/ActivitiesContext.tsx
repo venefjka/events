@@ -32,6 +32,9 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
   const [filters, setFilters] = useState<FilterState>({
     categoryId: '',
     subcategoryId: '',
+    priceTo: null,
+    cityQuery: '',
+    selectedCity: null,
     maxParticipants: null,
     registrationType: 'any',
     onlyAvailable: false,
@@ -45,6 +48,8 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
     timeSegment: null,
     dateFrom: '',
     dateTo: '',
+    timeFrom: '',
+    timeTo: '',
     timeZoneRange: [-12, 14],
   });
 

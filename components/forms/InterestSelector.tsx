@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-nati
 import { Chip } from '../ui/Chip';
 import { useTheme } from '../../themes/useTheme';
 import { ActivityCategory } from '../../types';
-import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 
 export interface InterestSelectorProps {
     categories: ActivityCategory[];

@@ -10,7 +10,7 @@ import { useActivityParticipation } from '@/contexts/ActivityParticipationContex
 import { UserPublic, UserRecord } from '@/types';
 import { buildUserPublic } from '@/utils/user';
 import { useTheme } from '@/themes/useTheme';
-import { renderCategoryIcon } from '@/components/ui/СategoryIcon';
+import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 
 type HistoryTab = 'created' | 'attended' | 'upcoming';
 

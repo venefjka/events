@@ -29,6 +29,8 @@ export interface DropdownInputSelectorProps {
   onSelect: (item: DropdownInputItem) => void;
   onBlur?: () => void;
   onFocus?: () => void;
+  onDropdownClose?: () => void;
+  openOnBlurSuggestions?: boolean;
   maxVisibleItems?: number;
   maxDropdownHeight?: number;
 }
@@ -44,6 +46,8 @@ export const DropdownInputSelector: React.FC<DropdownInputSelectorProps> = ({
   onSelect,
   onBlur,
   onFocus,
+  onDropdownClose,
+  openOnBlurSuggestions = false,
   maxVisibleItems = 5,
   maxDropdownHeight,
 }) => {
@@ -60,12 +64,12 @@ export const DropdownInputSelector: React.FC<DropdownInputSelectorProps> = ({
       setOpen(false);
       return;
     }
-    if (isFocused && suggestions.length > 0) {
+    if ((isFocused || openOnBlurSuggestions) && suggestions.length > 0) {
       setOpen(true);
     } else {
       setOpen(false);
     }
-  }, [suggestions.length, manualClosed, isFocused]);
+  }, [suggestions.length, manualClosed, isFocused, openOnBlurSuggestions]);
 
   useEffect(() => {
     if (!open || !triggerRef.current) return;
@@ -80,6 +84,7 @@ export const DropdownInputSelector: React.FC<DropdownInputSelectorProps> = ({
     setManualClosed(true);
     setOpen(false);
     setIsFocused(false);
+    onDropdownClose?.();
   };
 
   return (
