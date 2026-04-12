@@ -32,6 +32,7 @@ export const spacing = {
     iconSize: 20,
     iconSizeMedium: 18,
     iconSizeSmall: 16,
+    iconSizeXSmall: 14,
     iconSizeLarge: 24,
     iconSizeXLarge: 28,
     iconButtonHeight: 40,

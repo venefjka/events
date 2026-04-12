@@ -1,12 +1,11 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   Activity,
   ActivityParticipation,
   ActivityRecord,
   ActivityView,
   FilterState,
-  TimeSegment,
   UserPublic,
   UserRecord,
 } from '../types';
@@ -25,33 +24,29 @@ import {
   toUserPublicFallback,
 } from '../utils/activityUtils';
 import { normalizeParticipationList } from '@/utils/participation';
+import { createDefaultFilters, getFilterProfileContext } from '@/components/filters/helpers';
 
 export const [ActivitiesProvider, useActivities] = createContextHook(() => {
   const { currentUser, localUsers } = useAuth();
-  const [selectedTimeSegment, setSelectedTimeSegmentState] = useState<TimeSegment | null>(null);
-  const [filters, setFilters] = useState<FilterState>({
-    categoryId: '',
-    subcategoryId: '',
-    priceTo: null,
-    cityQuery: '',
-    selectedCity: null,
-    maxParticipants: null,
-    registrationType: 'any',
-    onlyAvailable: false,
-    level: 'any',
-    gender: 'any',
-    format: 'offline',
-    city: '',
-    ageFrom: null,
-    ageTo: null,
-    ageAny: true,
-    timeSegment: null,
-    dateFrom: '',
-    dateTo: '',
-    timeFrom: '',
-    timeTo: '',
-    timeZoneRange: [-12, 14],
-  });
+  const profile = getFilterProfileContext(currentUser);
+  const [filters, setFilters] = useState<FilterState>(() => createDefaultFilters(profile));
+
+  useEffect(() => {
+    if (!profile.profileSelectedCity) {
+      return;
+    }
+
+    setFilters((prev) => {
+      if (prev.format !== 'offline') {
+        return prev;
+      }
+      if (prev.selectedCity || prev.cityQuery?.trim()) {
+        return prev;
+      }
+
+      return createDefaultFilters(profile);
+    });
+  }, [profile]);
 
   const activitiesQuery = useQuery({
     queryKey: ['activities'],
@@ -191,8 +186,8 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
 
   const filteredActivities = useMemo(() => {
     if (!currentUser) return [];
-    return filterActivities(activityViews, filters, selectedTimeSegment);
-  }, [activityViews, filters, selectedTimeSegment, currentUser]);
+    return filterActivities(activityViews, filters);
+  }, [activityViews, filters, currentUser]);
 
 
   const createActivities = (newActivities: ActivityDraft[]) => {
@@ -253,19 +248,11 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
     saveUserActivitiesMutation.mutate({ joined: joinedActivities, saved: updatedSaved });
   };
 
-
-  const setSelectedTimeSegment = (segment: TimeSegment | null) => {
-    setSelectedTimeSegmentState(segment);
-    setFilters((prev) => ({ ...prev, timeSegment: segment }));
-  };
-
   return {
     activities: filteredActivities,
     allActivities: activityViews as Activity[],
     activityRecords,
     saveActivities: (records: ActivityRecord[]) => saveActivitiesMutation.mutate(records),
-    selectedTimeSegment,
-    setSelectedTimeSegment,
     filters,
     setFilters,
     joinedActivities,

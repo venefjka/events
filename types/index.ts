@@ -1,3 +1,12 @@
+// export * from './primitives';
+// export * from './shared';
+// export * from './entities';
+// export * from './dto';
+// export * from './queries';
+// export * from './requests';
+// export * from './models';
+// export * from './state';
+
 export type Gender = 'male' | 'female' | 'notgiven';
 export type SubcategoryId = string;
 
@@ -18,6 +27,8 @@ export interface UserPublic {
     age?: number;
     gender?: Gender;
     cityPlace?: CityPlace;
+    createdEventsCount?: number;
+    joinedEventsCount?: number;
     attendanceHistory?: {
         attended: number;
         missed: number;
@@ -180,15 +191,12 @@ export interface FilterState {
     ageFrom: number | null;
     ageTo: number | null;
     ageAny: boolean;
-    timeSegment: TimeSegment | null;
     dateFrom: string;
     dateTo: string;
     timeFrom: string;
     timeTo: string;
     timeZoneRange: [number, number];
 }
-
-export type TimeSegment = 'morning' | 'afternoon' | 'evening' | 'now' | 'night';
 
 export interface ActivityRating {
     id: string;

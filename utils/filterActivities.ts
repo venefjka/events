@@ -1,4 +1,4 @@
-import { Activity, FilterState, TimeSegment } from '../types';
+import { Activity, FilterState } from '../types';
 import {
   getDateKeyInTimeZone,
   getDateTimePartsInTimeZone,
@@ -99,42 +99,12 @@ const matchesLocationPart = (
 };
 
 /**
- * Проверяет, соответствует ли активность временному сегменту.
- */
-export const matchesTimeSegment = (activity: Activity, segment: TimeSegment): boolean => {
-  const activityDate = new Date(activity.startAt);
-  const now = new Date();
-  const timeMinutes = getMinutesOfDayInTimeZone(activityDate, activity.timeZone);
-  const hours = timeMinutes == null ? activityDate.getHours() : Math.floor(timeMinutes / 60);
-
-  switch (segment) {
-    case 'morning':
-      return hours >= 6 && hours < 12;
-    case 'afternoon':
-      return hours >= 12 && hours < 17;
-    case 'evening':
-      return hours >= 17 && hours < 23;
-    case 'now': {
-      const diffMs = activityDate.getTime() - now.getTime();
-      const diffHours = diffMs / (1000 * 60 * 60);
-      return diffHours >= 0 && diffHours <= 2;
-    }
-    case 'night':
-      return hours >= 23 || hours < 6;
-    default:
-      return true;
-  }
-};
-
-/**
  * Фильтрует активности по заданным фильтрам.
  */
 export const filterActivities = (
   activities: Activity[],
-  filters: FilterState,
-  selectedTimeSegment: TimeSegment | null
+  filters: FilterState
 ): Activity[] => {
-  const timeSegmentToUse = filters.timeSegment ?? selectedTimeSegment;
   const startDate = parseDateInput(filters.dateFrom ?? '');
   const endDate = parseDateInput(filters.dateTo ?? '');
   const filterStartKey = startDate ? toDateKey(startDate) : null;
@@ -232,10 +202,6 @@ export const filterActivities = (
       if (!matchesLocationPart(activity.location.country, selectedCity.country, activity.location.address)) {
         return false;
       }
-    }
-
-    if (timeSegmentToUse && !matchesTimeSegment(activity, timeSegmentToUse)) {
-      return false;
     }
 
     const activityStart = new Date(activity.startAt);

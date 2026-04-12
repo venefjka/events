@@ -1,23 +1,21 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
     View,
     StyleSheet,
     ScrollView,
     FlatList,
-    Animated
+    Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, Bookmark, Star, Sprout, Asterisk } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useActivities } from '../../contexts/ActivitiesContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Activity } from '@/types';
+import { Activity, FilterState } from '@/types';
 import { ActivityCard } from '@/components/cards/ActivityCard';
-import { TimeSegmentPicker } from '@/components/TimeSegmentPicker';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/themes/useTheme';
 import { createCommonStyles } from '@/styles/common';
-import { TIME_SEGMENTS } from '@/constants/timeSegments';
 import Constants from 'expo-constants';
 
 import { useExploreAnimations } from '../../hooks/useExploreAnimations';
@@ -26,19 +24,48 @@ import { MapSection } from '../../components/MapSection';
 import { Header, HeaderButtons } from '../../components/ui/Header';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ExpandableTabBar } from '@/components/ui/ExpandableTabs';
-import { clearAllStorageKeys } from '@/utils/storage';
+import {
+    CategoryFilterSection,
+    createDefaultFilters,
+    createFilterDraft,
+    FilterBottomSheetModal,
+    FilterChipsRow,
+    FormatFilterSection,
+    getFilterProfileContext,
+    getFilterSectionTitle,
+    ParticipationFilterSection,
+    PreferencesFilterSection,
+    ScheduleFilterSection,
+    type FilterSectionKey,
+    useFiltersFormController,
+    applySectionDefaults,
+} from '@/components/filters';
 
 export default function ExploreScreen() {
     const { currentUser } = useAuth();
-    const { activities, selectedTimeSegment, setSelectedTimeSegment, savedActivities, allActivities, filters } = useActivities();
+    const {
+        activities,
+        savedActivities,
+        allActivities,
+        filters,
+        setFilters,
+    } = useActivities();
     const theme = useTheme();
     const commonStyles = createCommonStyles(theme);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<'all' | 'recommended' | 'saved'>('all');
+    const [activeFilterSection, setActiveFilterSection] = useState<FilterSectionKey | null>(null);
+    const profile = useMemo(() => getFilterProfileContext(currentUser), [currentUser]);
+    const [modalFilters, setModalFilters] = useState(() => createFilterDraft(filters, profile));
 
     const headerHeight = theme.spacing.headerHeight + Constants.statusBarHeight;
     const { isMapExpanded, mapHeight, cardsTop, toggleMapHeight } = useExploreAnimations({ headerHeight });
+    const filterController = useFiltersFormController({
+        localFilters: modalFilters,
+        setLocalFilters: setModalFilters,
+        profile,
+    });
 
     const {
         filteredBySearch,
@@ -63,6 +90,62 @@ export default function ExploreScreen() {
 
     const handleClosePreview = () => {
         setSelectedMarkerId(null);
+    };
+
+    const openFilterSection = (section: FilterSectionKey) => {
+        setModalFilters(createFilterDraft(filters, profile));
+        setActiveFilterSection(section);
+    };
+
+    const closeFilterSection = () => {
+        setActiveFilterSection(null);
+    };
+
+    const handleApplyFilterSection = () => {
+        if (activeFilterSection === 'format' && !filterController.validateCitySelection()) {
+            return;
+        }
+
+        const nextFilters = { ...filterController.localFilters };
+        setModalFilters(nextFilters);
+        setFilters(nextFilters);
+        closeFilterSection();
+    };
+
+    const handleResetFilterSection = () => {
+        if (!activeFilterSection) {
+            return;
+        }
+
+        const defaults = createDefaultFilters(profile);
+        const nextFilters = applySectionDefaults(activeFilterSection, filters, defaults);
+        const nextModalFilters = applySectionDefaults(activeFilterSection, modalFilters, defaults);
+
+        setModalFilters(nextModalFilters);
+        setFilters(nextFilters);
+        filterController.resetUiState(activeFilterSection === 'format' ? Boolean(defaults.selectedCity) : false);
+        closeFilterSection();
+    };
+
+    const renderActiveFilterSection = () => {
+        if (!activeFilterSection) {
+            return null;
+        }
+
+        switch (activeFilterSection) {
+            case 'category':
+                return <CategoryFilterSection controller={filterController} />;
+            case 'format':
+                return <FormatFilterSection controller={filterController} />;
+            case 'schedule':
+                return <ScheduleFilterSection controller={filterController} />;
+            case 'participation':
+                return <ParticipationFilterSection controller={filterController} />;
+            case 'preferences':
+                return <PreferencesFilterSection controller={filterController} />;
+            default:
+                return null;
+        }
     };
 
     const renderActivityCard = ({ item }: { item: Activity }) => (
@@ -165,14 +248,12 @@ export default function ExploreScreen() {
                     backgroundColor={{ backgroundColor: theme.colors.background }}
                 />
             </View>
-{/* 
-            <View style={[styles.timeSegmentContainer, { top: headerHeight + theme.spacing.inputHeight + theme.spacing.md }]}>
-                <TimeSegmentPicker
-                    segments={TIME_SEGMENTS}
-                    selectedSegment={selectedTimeSegment}
-                    onSegmentSelect={setSelectedTimeSegment}
-                />
-            </View> */}
+
+            <View style={[styles.filtersRowWrapper, {
+                top: headerHeight + theme.spacing.inputHeight + theme.spacing.md * 2,
+            }]}>
+                <FilterChipsRow filters={filters} onPress={openFilterSection} />
+            </View>
 
             <Animated.View style={[styles.cardsContainer, { top: cardsTop, backgroundColor: theme.colors.background }]}>
 
@@ -210,6 +291,18 @@ export default function ExploreScreen() {
                     )}
                 </ScrollView>
             </Animated.View>
+
+            <FilterBottomSheetModal
+                visible={Boolean(activeFilterSection)}
+                title={activeFilterSection ? getFilterSectionTitle(activeFilterSection) : 'Фильтр'}
+                onClose={closeFilterSection}
+                onApply={handleApplyFilterSection}
+                onReset={handleResetFilterSection}
+            >
+                <View key={activeFilterSection ?? 'closed'}>
+                    {renderActiveFilterSection()}
+                </View>
+            </FilterBottomSheetModal>
         </View>
     );
 }
@@ -226,10 +319,11 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
     },
-    timeSegmentContainer: {
+    filtersRowWrapper: {
         position: 'absolute',
         left: 0,
         right: 0,
+        zIndex: 5,
     },
     cardsContainer: {
         position: 'absolute',

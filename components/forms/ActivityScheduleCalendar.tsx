@@ -101,6 +101,7 @@ const CollapsedCalendarButton: React.FC<CollapsedCalendarButtonProps> = ({ label
 
 type CustomCalendarHeaderProps = {
   calendarLabel: string;
+  showMinimize: boolean;
   onPrevMonth: () => void;
   onNextMonth: () => void;
   onClose: () => void;
@@ -108,6 +109,7 @@ type CustomCalendarHeaderProps = {
 
 const CustomCalendarHeader: React.FC<CustomCalendarHeaderProps> = ({
   calendarLabel,
+  showMinimize,
   onPrevMonth,
   onNextMonth,
   onClose,
@@ -134,9 +136,11 @@ const CustomCalendarHeader: React.FC<CustomCalendarHeaderProps> = ({
           <ChevronRight size={theme.spacing.iconSizeLarge} color={theme.colors.primary} />
         </TouchableOpacity>
 
-        <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
-          <Minimize2 size={theme.spacing.iconSize} color={theme.colors.primary} />
-        </TouchableOpacity>
+        {showMinimize &&
+          <TouchableOpacity onPress={onClose} activeOpacity={0.7}>
+            <Minimize2 size={theme.spacing.iconSize} color={theme.colors.primary} />
+          </TouchableOpacity>
+        }
       </View>
     </View>
   );
@@ -343,8 +347,7 @@ export const ActivityScheduleCalendar: React.FC<ActivityScheduleCalendarProps> =
     [weeksInMonth]
   );
 
-  const pickerHeaderHeight = headerVariant === 'default' ? theme.spacing.inputHeight : 0;
-  const visibleCalendarHeight = isOpen ? computedCalendarHeight + pickerHeaderHeight : 0;
+  const visibleCalendarHeight = isOpen ? computedCalendarHeight : 0;
   const calendarHeightAnim = React.useRef(new Animated.Value(visibleCalendarHeight)).current;
   const calendarOpacityAnim = React.useRef(new Animated.Value(isOpen ? 1 : 0)).current;
 
@@ -369,11 +372,11 @@ export const ActivityScheduleCalendar: React.FC<ActivityScheduleCalendarProps> =
 
   const collapsedLabel = inputsProps
     ? buildScheduleHeaderLabelFromInputs({
-        startDateValue: inputsProps.startDateValue,
-        endDateValue: inputsProps.endDateValue,
-        startTimeValue: inputsProps.startTimeValue,
-        endTimeValue: inputsProps.endTimeValue,
-      })
+      startDateValue: inputsProps.startDateValue,
+      endDateValue: inputsProps.endDateValue,
+      startTimeValue: inputsProps.startTimeValue,
+      endTimeValue: inputsProps.endTimeValue,
+    })
     : buildScheduleHeaderLabelFromDates(startDate, endDate);
 
   const handlePrevMonth = React.useCallback(() => {
@@ -514,22 +517,23 @@ export const ActivityScheduleCalendar: React.FC<ActivityScheduleCalendarProps> =
     <View>
       {!isOpen && <CollapsedCalendarButton label={collapsedLabel} onPress={() => onToggle(true)} />}
 
-      {isOpen && headerVariant === 'custom' && (
+      {isOpen && (
         <CustomCalendarHeader
           calendarLabel={calendarLabel}
           onPrevMonth={handlePrevMonth}
           onNextMonth={handleNextMonth}
           onClose={() => onToggle(false)}
+          showMinimize={headerVariant === 'custom'}
         />
       )}
 
-      {isOpen && headerVariant === 'default' && (
+      {/* {isOpen && headerVariant === 'default' && (
         <View style={[styles.defaultHeaderActions, { marginBottom: theme.spacing.sm }]}>
           <TouchableOpacity onPress={() => onToggle(false)} activeOpacity={0.7}>
             <Minimize2 size={theme.spacing.iconSize} color={theme.colors.primary} />
           </TouchableOpacity>
         </View>
-      )}
+      )} */}
 
       <Animated.View style={{ height: calendarHeightAnim, opacity: calendarOpacityAnim, overflow: 'hidden' }}>
         {isRangeMode ? (
@@ -547,7 +551,7 @@ export const ActivityScheduleCalendar: React.FC<ActivityScheduleCalendarProps> =
             year={visibleYear}
             onMonthChange={handleMonthChange}
             onYearChange={handleYearChange}
-            hideHeader={headerVariant === 'custom'}
+            hideHeader
             locale="ru"
           />
         ) : (

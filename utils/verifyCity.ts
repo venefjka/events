@@ -34,6 +34,10 @@ const buildCityResult = (place: NominatimPlace): CitySearchResult | null => {
         place.address?.city_district ||
         place.address?.state_district;
 
+    if (!primarySettlement && place.type === 'administrative') {
+        return null;
+    }
+
     const fallbackSettlement =
         place.address?.state ||
         place.address?.region ||
