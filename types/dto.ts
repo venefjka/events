@@ -122,12 +122,26 @@ export interface ActivityJoinRequestDto {
   participationStatus: 'pending';
 }
 
+export interface ActivityParticipationDto {
+  id: Id;
+  activityId: Id;
+  userId: Id;
+  status: ParticipationStatus;
+  createdAt: IsoDateTimeString;
+}
+
 export interface ActivityRatingDto {
   id: Id;
   user: UserSnippetDto;
   rating: number;
   comment?: string;
   createdAt: IsoDateTimeString;
+}
+
+export interface ActivityRatingsBatchDto {  // todo лишний?
+  activityId: Id;
+  averageRating: number;
+  totalRatings: number;
 }
 
 export interface NotificationDto {

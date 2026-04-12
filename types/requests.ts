@@ -8,7 +8,7 @@
   IsoDateTimeString,
   SubcategoryId,
 } from './primitives';
-import { ActivityPreferencesDto, CityDto, LocationDto } from './shared';
+import { ActivityPreferencesDto, CityDto, LocationDto, UserPrivacySettings } from './shared';
 
 export interface LoginRequest {
   email: string;
@@ -23,6 +23,7 @@ export interface RegisterRequest {
   gender: Gender;
   city: CityDto;
   interests: SubcategoryId[];
+  privacy?: Partial<UserPrivacySettings>;
 }
 
 export interface UpdateMeRequest {
@@ -122,4 +123,10 @@ export interface UpdateSubscriptionRequest {
 
 export interface ScanAttendanceRequest {
   token: string;
+}
+
+export interface UploadFileRequest {
+  name: string;
+  mimeType: string;
+  uri: string;
 }

@@ -36,11 +36,42 @@ export interface RecommendedActivitiesQuery {
   timeTo?: string;
 }
 
+export interface MyActivitiesQuery extends ActivityListQuery {
+  tab: 'upcoming' | 'attended' | 'created';
+}
+
 export interface UserHistoryQuery {
   tab: 'created' | 'attended' | 'upcoming';
   limit?: number;
   cursor?: string;
   sort?: 'startAt' | 'createdAt';
+}
+
+export interface JoinParticipationQuery {   // todo лишний?
+  activityIds?: string[];
+  userId?: string;
+  statuses?: Array<'pending' | 'accepted' | 'attended' | 'rejected' | 'missed'>;
+}
+
+export interface ActivityParticipantsQuery {
+  limit?: number;
+  cursor?: string;
+  status?: 'pending' | 'accepted' | 'attended' | 'rejected' | 'missed';
+}
+
+export interface ActivityJoinRequestsQuery {
+  limit?: number;
+  cursor?: string;
+}
+
+export interface ActivityRatingsQuery {   // todo лишний?
+  activityIds?: string[];
+}
+
+export interface ActivityRatingsListQuery {
+  limit?: number;
+  cursor?: string;
+  sort?: 'createdAt' | 'rating';
 }
 
 export interface NotificationsQuery {
