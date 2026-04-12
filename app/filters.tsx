@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { useActivities } from '@/contexts/ActivitiesContext';
+import { useActivityFilters, type ActivityFilterScope } from '@/contexts/ActivityFiltersContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Header } from '@/components/ui/Header';
@@ -21,16 +21,24 @@ import {
 } from '@/components/filters';
 
 export default function FiltersScreen() {
-  const { filters, setFilters } = useActivities();
+  const { scope } = useLocalSearchParams<{ scope?: string }>();
   const { currentUser } = useAuth();
   const theme = useTheme();
-  const profile = getFilterProfileContext(currentUser);
+  const resolvedScope = useMemo<ActivityFilterScope>(() => {
+    return scope === 'my-activities' ? 'my-activities' : 'explore';
+  }, [scope]);
+  const { filters, setFilters } = useActivityFilters(resolvedScope);
+  const profile = useMemo(() => getFilterProfileContext(currentUser), [currentUser]);
   const [localFilters, setLocalFilters] = useState(() => createFilterDraft(filters, profile));
   const controller = useFiltersFormController({
     localFilters,
     setLocalFilters,
     profile,
   });
+
+  useEffect(() => {
+    setLocalFilters(createFilterDraft(filters, profile));
+  }, [filters, profile]);
 
   const sectionStyle = {
     paddingHorizontal: theme.spacing.screenPaddingHorizontal,
@@ -47,7 +55,7 @@ export default function FiltersScreen() {
       return;
     }
     setFilters(localFilters);
-    router.replace('/');
+    router.back();
   };
 
   const handleReset = () => {
@@ -55,7 +63,7 @@ export default function FiltersScreen() {
     setLocalFilters(resetFilters);
     setFilters(resetFilters);
     controller.resetUiState(Boolean(profile.profileSelectedCity));
-    router.replace('/');
+    router.back();
   };
 
   return (

@@ -1,11 +1,10 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import {
   Activity,
   ActivityParticipation,
   ActivityRecord,
   ActivityView,
-  FilterState,
   UserPublic,
   UserRecord,
 } from '../types';
@@ -14,7 +13,6 @@ import { categories } from '../constants/categories';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
-import { filterActivities } from '../utils/filterActivities';
 import { buildUserPublic } from '@/utils/user';
 import {
   ActivityDraft,
@@ -24,29 +22,9 @@ import {
   toUserPublicFallback,
 } from '../utils/activityUtils';
 import { normalizeParticipationList } from '@/utils/participation';
-import { createDefaultFilters, getFilterProfileContext } from '@/components/filters/helpers';
 
 export const [ActivitiesProvider, useActivities] = createContextHook(() => {
   const { currentUser, localUsers } = useAuth();
-  const profile = getFilterProfileContext(currentUser);
-  const [filters, setFilters] = useState<FilterState>(() => createDefaultFilters(profile));
-
-  useEffect(() => {
-    if (!profile.profileSelectedCity) {
-      return;
-    }
-
-    setFilters((prev) => {
-      if (prev.format !== 'offline') {
-        return prev;
-      }
-      if (prev.selectedCity || prev.cityQuery?.trim()) {
-        return prev;
-      }
-
-      return createDefaultFilters(profile);
-    });
-  }, [profile]);
 
   const activitiesQuery = useQuery({
     queryKey: ['activities'],
@@ -184,12 +162,6 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
   const joinedActivities = userActivitiesQuery.data?.joined || [];
   const savedActivities = userActivitiesQuery.data?.saved || [];
 
-  const filteredActivities = useMemo(() => {
-    if (!currentUser) return [];
-    return filterActivities(activityViews, filters);
-  }, [activityViews, filters, currentUser]);
-
-
   const createActivities = (newActivities: ActivityDraft[]) => {
     if (!currentUser) return [];
     const created = newActivities.map((payload) => buildActivity(payload, currentUser.id));
@@ -249,12 +221,10 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
   };
 
   return {
-    activities: filteredActivities,
+    activities: activityViews as Activity[],
     allActivities: activityViews as Activity[],
     activityRecords,
     saveActivities: (records: ActivityRecord[]) => saveActivitiesMutation.mutate(records),
-    filters,
-    setFilters,
     joinedActivities,
     savedActivities,
     toggleSaveActivity,

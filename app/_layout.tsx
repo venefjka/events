@@ -10,6 +10,7 @@ import { ActivityParticipationProvider } from "@/contexts/ActivityParticipationC
 import { QrTokenProvider } from "@/contexts/QrTokenContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { SubscriptionsProvider } from "@/contexts/SubscriptionsContext";
+import { ActivityFiltersProvider } from "@/contexts/ActivityFiltersContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
 
@@ -119,15 +120,17 @@ export default function RootLayout() {
                     <AuthProvider>
                         <NotificationsProvider>
                             <SubscriptionsProvider>
-                                <ActivitiesProvider>
-                                    <ActivityParticipationProvider>
-                                        <QrTokenProvider>
-                                            <ActivityRatingsProvider>
-                                                <RootLayoutNav />
-                                            </ActivityRatingsProvider>
-                                        </QrTokenProvider>
-                                    </ActivityParticipationProvider>
-                                </ActivitiesProvider>
+                                <ActivityFiltersProvider>
+                                    <ActivitiesProvider>
+                                        <ActivityParticipationProvider>
+                                            <QrTokenProvider>
+                                                <ActivityRatingsProvider>
+                                                    <RootLayoutNav />
+                                                </ActivityRatingsProvider>
+                                            </QrTokenProvider>
+                                        </ActivityParticipationProvider>
+                                    </ActivitiesProvider>
+                                </ActivityFiltersProvider>
                             </SubscriptionsProvider>
                         </NotificationsProvider>
                     </AuthProvider>

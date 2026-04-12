@@ -1,6 +1,6 @@
 import { useTheme } from "@/themes/useTheme";
 import { Tabs, usePathname } from "expo-router";
-import { Map, User, Bell, } from "lucide-react-native";
+import { Map, User, Bell, ToolCase } from "lucide-react-native";
 import React from "react";
 
 export default function TabLayout() {
@@ -25,6 +25,13 @@ export default function TabLayout() {
                 options={{
                     title: "",
                     tabBarIcon: ({ color, size }) => <Map color={color} size={size} />,
+                }}
+            />
+            <Tabs.Screen
+                name="my-activities"
+                options={{
+                    title: "",
+                    tabBarIcon: ({ color, size }) => <ToolCase color={color} size={size} />,
                 }}
             />
             <Tabs.Screen

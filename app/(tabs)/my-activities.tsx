@@ -2,25 +2,21 @@ import React, { useMemo, useState } from 'react';
 import {
     View,
     StyleSheet,
-    ScrollView,
     FlatList,
-    Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Search, Bookmark, Star, Sprout, Asterisk } from 'lucide-react-native';
+import { Search, AlarmClock, CircleCheck, CircleUser, Sprout } from 'lucide-react-native';
 import { router } from 'expo-router';
 import { useActivities } from '../../contexts/ActivitiesContext';
+import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { Activity } from '@/types';
 import { ActivityCard } from '@/components/cards/ActivityCard';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/themes/useTheme';
 import { createCommonStyles } from '@/styles/common';
-import Constants from 'expo-constants';
 
-import { useExploreAnimations } from '../../hooks/useExploreAnimations';
-import { useExploreActivities } from '../../hooks/useExploreActivities';
-import { MapSection } from '../../components/MapSection';
+import { useMyActivities } from '../../hooks/useMyActivities';
 import { Header, HeaderButtons } from '../../components/ui/Header';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ExpandableTabBar } from '@/components/ui/ExpandableTabs';
@@ -42,46 +38,50 @@ import {
     applySectionDefaults,
 } from '@/components/filters';
 
-export default function ExploreScreen() {
+export default function MyActivitiesScreen() {
     const { currentUser } = useAuth();
-    const { savedActivities, allActivities } = useActivities();
-    const { filters, setFilters } = useActivityFilters('explore');
+    const { allActivities } = useActivities();
+    const { getUserActivityIdsByStatus } = useActivityParticipation();
+    const { filters, setFilters } = useActivityFilters('my-activities');
     const theme = useTheme();
     const commonStyles = createCommonStyles(theme);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
-    const [activeTab, setActiveTab] = useState<ExploreTab>('all');
+    const [activeTab, setActiveTab] = useState<MyActivitiesTab>('upcoming');
     const [activeFilterSection, setActiveFilterSection] = useState<FilterSectionKey | null>(null);
     const profile = useMemo(() => getFilterProfileContext(currentUser), [currentUser]);
     const [modalFilters, setModalFilters] = useState(() => createFilterDraft(filters, profile));
 
-    const headerHeight = theme.spacing.headerHeight + Constants.statusBarHeight;
-    const { isMapExpanded, mapHeight, cardsTop, toggleMapHeight } = useExploreAnimations({ headerHeight });
     const filterController = useFiltersFormController({
         localFilters: modalFilters,
         setLocalFilters: setModalFilters,
         profile,
     });
 
-    const { displayActivities } = useExploreActivities({
+    const upcomingParticipationActivityIds = useMemo(() => {
+        if (!currentUser) {
+            return [];
+        }
+
+        return getUserActivityIdsByStatus(currentUser.id, ['pending', 'accepted']);
+    }, [currentUser, getUserActivityIdsByStatus]);
+
+    const attendedActivityIds = useMemo(() => {
+        if (!currentUser) {
+            return [];
+        }
+
+        return getUserActivityIdsByStatus(currentUser.id, ['attended']);
+    }, [currentUser, getUserActivityIdsByStatus]);
+
+    const { displayActivities } = useMyActivities({
         searchQuery,
         allActivities,
-        savedActivities,
         currentUser,
         filters,
         activeTab,
+        upcomingParticipationActivityIds,
+        attendedActivityIds,
     });
-
-    const handleMarkerPress = (activityId: string) => {
-        setSelectedMarkerId(activityId);
-        if (!isMapExpanded) {
-            toggleMapHeight();
-        }
-    };
-
-    const handleClosePreview = () => {
-        setSelectedMarkerId(null);
-    };
 
     const openFilterSection = (section: FilterSectionKey) => {
         setModalFilters(createFilterDraft(filters, profile));
@@ -148,45 +148,42 @@ export default function ExploreScreen() {
         />
     );
 
-    type ExploreTab = 'all' | 'recommended' | 'saved';
+    type MyActivitiesTab = 'upcoming' | 'attended' | 'created';
 
     const tabItems = [
         {
-            id: 'all' as const,
-            label: 'Все активности',
-            renderIcon: ({ color, size }: { color: string; size: number }) => <Asterisk size={size * 1.2} color={color} />,
+            id: 'upcoming' as const,
+            label: 'Предстоящие',
+            renderIcon: ({ color, size }: { color: string; size: number }) => <AlarmClock size={size} color={color} />,
         },
         {
-            id: 'recommended' as const,
-            label: 'Рекомендуем для Вас',
-            renderIcon: ({ color, size }: { color: string; size: number }) => <Star size={size} color={color} />,
+            id: 'attended' as const,
+            label: 'Посещенные',
+            renderIcon: ({ color, size }: { color: string; size: number }) => <CircleCheck size={size} color={color} />,
         },
         {
-            id: 'saved' as const,
-            label: 'Вы сохранили',
+            id: 'created' as const,
+            label: 'Созданные',
             renderIcon: ({ color, size, isActive }: { color: string; size: number; isActive: boolean }) => (
-                <Bookmark size={size} color={color} fill={isActive ? theme.colors.primary : 'none'} />
+                <CircleUser size={size} color={color} fill={isActive ? theme.colors.primary : 'none'} />
             ),
         },
     ];
 
     const renderEmptyState = () => {
-        let icon = <Sprout size={48} />;
-        let title = 'Нет событий';
-        let description = 'Попробуйте изменить фильтры или станьте первым, кто создаст новое событие';
+        let icon = <Sprout size={48} color={theme.colors.textSecondary} />;
+        let title = 'Нет предстоящих событий';
+        let description = 'Присоединитесь к новому событию, чтобы организовать досуг';
 
-        if (activeTab === 'saved') {
-            icon = <Bookmark size={48} />
-            title = 'Нет сохраненных событий';
-            description = 'Сохраняйте интересные события, чтобы вернуться к ним позже';
+        if (activeTab === 'attended') {
+            title = 'Нет посещенных событий';
+            description = 'Не забудьте предъявить Ваш QR-код организатору для отметки посещения';
         } else if (searchQuery) {
-            icon = <Search size={48} />
             title = 'Ничего не найдено';
             description = 'Попробуйте изменить запрос';
-        } else if (activeTab === 'recommended') {
-            icon = <Star size={48} />
-            title = 'Нет рекомендаций';
-            description = 'Заполните интересы в профиле, чтобы получать персональные рекомендации';
+        } else if (activeTab === 'created') {
+            title = 'Нет созданных событий';
+            description = 'Попробуйте организовать новое событие сами';
         }
 
         return (
@@ -203,62 +200,41 @@ export default function ExploreScreen() {
     }
 
     return (
-        <View style={[commonStyles.container]}>
-            <SafeAreaView edges={['top']} style={[styles.safeArea]}>
+        <SafeAreaView style={[styles.safeArea, { backgroundColor: theme.colors.background }]} edges={['top']}>
+            <View style={styles.container}>
                 <Header
-                    title="WeDo"
+                    title="Мои активности"
                     rightButtons={[
-                        HeaderButtons.filter(() => router.push('/filters?scope=explore')),
+                        HeaderButtons.filter(() => router.push('/filters?scope=my-activities')),
                         HeaderButtons.add(),
                     ]}
                 />
-            </SafeAreaView>
+                <View style={{ backgroundColor: theme.colors.surface }}>
+                    <View style={{
+                        paddingHorizontal: theme.spacing.screenPaddingHorizontal,
+                        paddingVertical: theme.spacing.xs * 2
+                    }}>
+                        <Input
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                            placeholder="Поиск"
+                            icon={<Search size={theme.spacing.iconSize} color={theme.colors.textSecondary} />}
+                            backgroundColor={{ backgroundColor: theme.colors.background }}
+                        />
+                    </View>
 
-            <MapSection
-                activities={displayActivities}
-                isMapExpanded={isMapExpanded}
-                mapHeight={mapHeight}
-                selectedMarkerId={selectedMarkerId}
-                centerLatitude={filters.selectedCity?.latitude}
-                centerLongitude={filters.selectedCity?.longitude}
-                onMarkerPress={handleMarkerPress}
-                onClosePreview={handleClosePreview}
-                onToggleExpand={toggleMapHeight}
-            />
-
-            {/* temp fix - map animation */}
-            <View style={{ backgroundColor: theme.colors.background, position: 'absolute', top: 0, height: Constants.statusBarHeight + 10, zIndex: 1000, width: '100%' }}></View>
-
-            <View style={[styles.searchWrapper, {
-                marginHorizontal: theme.spacing.screenPaddingHorizontal,
-                marginVertical: theme.spacing.md,
-                top: headerHeight + theme.spacing.xs,
-            }]}>
-                <Input
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="Поиск"
-                    icon={<Search size={theme.spacing.iconSize} color={theme.colors.textSecondary} />}
-                    backgroundColor={{ backgroundColor: theme.colors.background }}
-                />
-            </View>
-
-            <View style={[styles.filtersRowWrapper, {
-                top: headerHeight + theme.spacing.inputHeight + theme.spacing.md * 2,
-            }]}>
-                <FilterChipsRow filters={filters} onPress={openFilterSection} />
-            </View>
-
-            <Animated.View style={[styles.cardsContainer, { top: cardsTop, backgroundColor: theme.colors.background }]}>
+                    <View style={{ paddingBottom: theme.spacing.lg }}>
+                        <FilterChipsRow filters={filters} onPress={openFilterSection} />
+                    </View>
+                </View>
 
                 <View style={{
                     borderTopColor: theme.colors.border,
                     borderTopWidth: theme.spacing.borderWidth,
                     paddingHorizontal: theme.spacing.screenPaddingHorizontal,
                     paddingVertical: theme.spacing.lg,
-                    backgroundColor: theme.colors.background,
                 }}>
-                    <ExpandableTabBar<ExploreTab>
+                    <ExpandableTabBar<MyActivitiesTab>
                         items={tabItems}
                         activeId={activeTab}
                         onChange={setActiveTab}
@@ -267,24 +243,25 @@ export default function ExploreScreen() {
                     />
                 </View>
 
-                <ScrollView style={styles.cardsScroll}>
-                    {displayActivities.length > 0 ? (
-                        <FlatList
-                            data={displayActivities}
-                            renderItem={renderActivityCard}
-                            keyExtractor={(item) => item.id}
-                            scrollEnabled={false}
-                            contentContainerStyle={[{
+                <View style={{ flex: 1 }}>
+                    <FlatList
+                        data={displayActivities}
+                        renderItem={renderActivityCard}
+                        keyExtractor={(item) => item.id}
+                        contentContainerStyle={[
+                            styles.cardsList,
+                            {
                                 paddingHorizontal: theme.spacing.screenPaddingHorizontal,
                                 gap: theme.spacing.sm,
                                 paddingBottom: 100,
-                            }]}
-                        />
-                    ) : (
-                        renderEmptyState()
-                    )}
-                </ScrollView>
-            </Animated.View>
+                            },
+                            displayActivities.length === 0 && styles.emptyList,
+                        ]}
+                        ListEmptyComponent={renderEmptyState}
+                        showsVerticalScrollIndicator={false}
+                    />
+                </View>
+            </View>
 
             <FilterBottomSheetModal
                 visible={Boolean(activeFilterSection)}
@@ -297,35 +274,22 @@ export default function ExploreScreen() {
                     {renderActiveFilterSection()}
                 </View>
             </FilterBottomSheetModal>
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
     safeArea: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        zIndex: 10,
-    },
-    searchWrapper: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    filtersRowWrapper: {
-        position: 'absolute',
-        left: 0,
-        right: 0,
-        zIndex: 5,
-    },
-    cardsContainer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-    },
-    cardsScroll: {
         flex: 1,
+    },
+    container: {
+        flex: 1,
+    },
+    cardsList: {
+        flexGrow: 1,
+    },
+    emptyList: {
+        flex: 1,
+        justifyContent: 'center',
     },
 });
