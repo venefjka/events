@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -8,9 +8,10 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
-import { ArrowLeft, ChevronLeft, Plus, X } from 'lucide-react-native';
+import { Plus, X } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Button } from '@/components/ui/Button';
+import { PhotoViewerModal } from '@/components/ui/PhotoViewerModal';
 import { useTheme } from '@/themes/useTheme';
 
 interface PhotoPickerProps {
@@ -37,7 +38,7 @@ interface PhotoTileProps {
   translateX: SharedValue<number>;
   translateY: SharedValue<number>;
   onDelete: (index: number) => void;
-  onPreview: (uri: string) => void;
+  onPreview: (index: number) => void;
   onDrop: () => void;
   onDragStateChange?: (isDragging: boolean) => void;
   borderRadius: number;
@@ -151,7 +152,7 @@ const PhotoTile: React.FC<PhotoTileProps> = ({
   return (
     <GestureDetector gesture={pan}>
       <Animated.View style={[styles.tile, { borderRadius }, animatedStyle]}>
-        <Pressable style={styles.previewTap} onPress={() => onPreview(uri)}>
+        <Pressable style={styles.previewTap} onPress={() => onPreview(index)}>
           <Image source={{ uri }} style={styles.image} />
         </Pressable>
         <Pressable
@@ -181,7 +182,7 @@ export const PhotoPicker: React.FC<PhotoPickerProps> = ({
   const theme = useTheme();
   const gap = theme.spacing.sm;
   const [gridWidth, setGridWidth] = React.useState(0);
-  const [previewUri, setPreviewUri] = React.useState<string | null>(null);
+  const [previewIndex, setPreviewIndex] = React.useState<number | null>(null);
   const activeId = useSharedValue<string | null>(null);
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
@@ -291,7 +292,7 @@ export const PhotoPicker: React.FC<PhotoPickerProps> = ({
                     translateX={translateX}
                     translateY={translateY}
                     onDelete={handleDelete}
-                    onPreview={setPreviewUri}
+                    onPreview={setPreviewIndex}
                     onDrop={handleDrop}
                     onDragStateChange={onDragStateChange}
                     borderRadius={theme.spacing.radius}
@@ -340,28 +341,12 @@ export const PhotoPicker: React.FC<PhotoPickerProps> = ({
         />
       )}
 
-      <Modal
-        transparent
-        visible={Boolean(previewUri)}
-        animationType="fade"
-        onRequestClose={() => setPreviewUri(null)}
-      >
-        <Pressable style={styles.previewBackdrop} onPress={() => setPreviewUri(null)}>
-          <View style={styles.previewContent}>
-            {previewUri && (
-              <Image source={{ uri: previewUri }} style={[styles.previewImage]} />
-            )}
-            <Button
-              variant='secondary'
-              size='small'
-              icon={<ChevronLeft size={theme.spacing.iconSize} color={theme.colors.text} />}
-              title={'Назад'}
-              onPress={() => setPreviewUri(null)}
-              style={{ borderRadius: theme.spacing.radiusRound, marginTop: theme.spacing.lg, paddingRight: theme.spacing.xl }}
-            />
-          </View>
-        </Pressable>
-      </Modal>
+      <PhotoViewerModal
+        visible={previewIndex !== null}
+        photos={value}
+        initialIndex={previewIndex ?? 0}
+        onClose={() => setPreviewIndex(null)}
+      />
     </View>
   );
 };
@@ -398,22 +383,5 @@ const styles = StyleSheet.create({
     height: 24,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  previewBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    alignItems: 'center',
-    padding: 24,
-  },
-  previewContent: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  previewImage: {
-    width: '100%',
-    height: '70%',
-    resizeMode: 'contain',
   },
 });

@@ -86,8 +86,8 @@ export const Header: React.FC<HeaderProps> = ({
                 borderBottomColor: borderBottom ? theme.colors.border : 'transparent',
                 borderBottomWidth: borderBottom ? theme.spacing.borderWidth : 0,
                 paddingHorizontal: theme.spacing.screenPaddingHorizontal,
-                paddingVertical: showBackButton ? 0 : theme.spacing.md - 2,
-                height: showBackButton ? theme.spacing.headerHeightSmall : theme.spacing.headerHeight,
+                paddingBottom: theme.spacing.xs,
+                height: showBackButton && rightButtons.length == 0 ? theme.spacing.headerHeightSmall : theme.spacing.headerHeight,
                 backgroundColor: backgroundColor || theme.colors.background,
             },
         ]}>

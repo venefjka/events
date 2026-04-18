@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, Image } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, Image, StyleProp } from 'react-native';
 import { useTheme } from '../../themes/useTheme';
 
 export interface AvatarProps {
     name: string;
     size?: 'xs' | 'small' | 'medium' | 'large';
     imageUrl?: string;
-    style?: ViewStyle;
+    style?: StyleProp<ViewStyle>;
 }
 
 export const Avatar: React.FC<AvatarProps> = ({

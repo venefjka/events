@@ -60,7 +60,7 @@ function RootLayoutNav() {
                     name="activity/[id]"
                     options={{
                         presentation: "card",
-                        headerShown: true,
+                          headerShown: false,
                         title: "Активность"
                     }}
                 />
@@ -76,7 +76,7 @@ function RootLayoutNav() {
                     name="user/[id]"
                     options={{
                         presentation: "card",
-                        headerShown: true,
+                        headerShown: false,
                         title: "Профиль"
                     }}
                 />
@@ -84,7 +84,7 @@ function RootLayoutNav() {
                     name="qr-scan"
                     options={{
                         presentation: "modal",
-                        headerShown: true,
+                        headerShown: false,
                         title: "Сканировать QR"
                     }}
                 />
@@ -92,7 +92,7 @@ function RootLayoutNav() {
                     name="rate-activity"
                     options={{
                         presentation: "modal",
-                        headerShown: true,
+                        headerShown: false,
                         title: "Оценить событие"
                     }}
                 />

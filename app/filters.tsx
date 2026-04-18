@@ -124,7 +124,7 @@ export default function FiltersScreen() {
           title="Сбросить"
           variant="secondary"
           onPress={handleReset}
-          style={{ width: '35%', borderWidth: 0 }}
+          style={{ width: '35%' }}
         />
         <Button
           title="Применить"

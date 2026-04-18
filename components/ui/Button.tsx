@@ -61,8 +61,6 @@ export const Button: React.FC<ButtonProps> = ({
         break;
       case 'secondary':
         baseStyle.backgroundColor = isDisabled ? theme.colors.disabled : theme.colors.surface;
-        baseStyle.borderWidth = theme.spacing.borderWidth;
-        baseStyle.borderColor = theme.colors.border;
         break;
       case 'outline':
         baseStyle.backgroundColor = 'transparent';

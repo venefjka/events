@@ -59,7 +59,7 @@ export const spacing = {
     sectionDivider: 8,
 
     // Высота шапки
-    headerHeight: 60,
+    headerHeight: 54,
     headerHeightSmall: 40,
     headerHeightLarge: 160,
 };

@@ -40,7 +40,7 @@ export const Card: React.FC<CardProps> = ({
 
     switch (variant) {
       case 'elevated':
-        baseStyle.backgroundColor = theme.colors.surface;
+        baseStyle.backgroundColor = theme.colors.surfaceVariant;
         baseStyle.shadowColor = theme.colors.text;
         baseStyle.shadowOffset = { width: 0, height: 2 };
         baseStyle.shadowOpacity = 0.1;
@@ -48,12 +48,12 @@ export const Card: React.FC<CardProps> = ({
         baseStyle.elevation = 3;
         break;
       case 'outlined':
-        baseStyle.backgroundColor = theme.colors.surface;
+        baseStyle.backgroundColor = theme.colors.surfaceVariant;
         baseStyle.borderWidth = theme.spacing.borderWidth;
         baseStyle.borderColor = theme.colors.border;
         break;
       default:
-        baseStyle.backgroundColor = theme.colors.surface;
+        baseStyle.backgroundColor = theme.colors.surfaceVariant;
     }
 
     return baseStyle;

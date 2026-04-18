@@ -66,7 +66,7 @@ export const getLevelItems = () => [
 export const getApprovalItems = () => [
   {
     id: 'yes' as const,
-    label: 'По заявкам',
+    label: 'По заявке',
     renderIcon: ({ color, size }: { color: string; size: number }) => (
       <Feather name="lock" size={size} color={color} />
     ),
