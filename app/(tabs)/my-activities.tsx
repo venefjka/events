@@ -171,7 +171,7 @@ export default function MyActivitiesScreen() {
     ];
 
     const renderEmptyState = () => {
-        let icon = <Sprout size={48} color={theme.colors.textSecondary} />;
+        let icon = <Sprout size={theme.spacing.iconSizeXXLarge} color={theme.colors.textSecondary} />;
         let title = 'Нет предстоящих событий';
         let description = 'Присоединитесь к новому событию, чтобы организовать досуг';
 

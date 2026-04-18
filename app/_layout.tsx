@@ -83,17 +83,9 @@ function RootLayoutNav() {
                 <Stack.Screen
                     name="qr-scan"
                     options={{
-                        presentation: "modal",
+                        presentation: "card",
                         headerShown: false,
                         title: "Сканировать QR"
-                    }}
-                />
-                <Stack.Screen
-                    name="rate-activity"
-                    options={{
-                        presentation: "modal",
-                        headerShown: false,
-                        title: "Оценить событие"
                     }}
                 />
                 <Stack.Screen

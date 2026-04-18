@@ -1,256 +1,233 @@
-import React from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    Share,
-    Platform,
-} from 'react-native';
-import { router, Stack } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { X, QrCode, Share2, Scan } from 'lucide-react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Redirect, Stack, router, useLocalSearchParams } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { RefreshCcw } from 'lucide-react-native';
+import * as Clipboard from 'expo-clipboard';
+import QRCode from 'react-native-qrcode-svg';
+import { useActivities } from '@/contexts/ActivitiesContext';
+import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQrTokens } from '@/contexts/QrTokenContext';
-import { Avatar } from '@/components/ui/Avatar';
-
-// todo: сделать с нуля
+import { Header } from '@/components/ui/Header';
+import { useTheme } from '@/themes/useTheme';
+import { createQrPayload } from '@/utils/qr';
 
 export default function MyQRScreen() {
-    const { currentUser } = useAuth();
-    const { getOrCreateToken, tokenTtlMs } = useQrTokens();
+  const { activityId } = useLocalSearchParams<{ activityId?: string }>();
+  const resolvedActivityId = Array.isArray(activityId) ? activityId[0] : activityId;
+  const { currentUser } = useAuth();
+  const { allActivities } = useActivities();
+  const { getUserActivityIdsByStatus } = useActivityParticipation();
+  const { getOrCreateToken, issueToken, tokenTtlMs } = useQrTokens();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const [isCodeCopied, setIsCodeCopied] = useState(false);
 
-    const tokenQuery = useQuery({
-        queryKey: ['qrToken', currentUser?.id],
-        queryFn: async () => {
-            if (!currentUser) return '';
-            return getOrCreateToken(currentUser.id);
-        },
-        enabled: Boolean(currentUser),
-        refetchInterval: Math.max(10000, Math.floor(tokenTtlMs * 0.5)),
-    });
+  const availableActivityIds = useMemo(() => {
+    if (!currentUser) return new Set<string>();
+    return new Set(getUserActivityIdsByStatus(currentUser.id, ['accepted']));
+  }, [currentUser, getUserActivityIdsByStatus]);
 
-    if (!currentUser) {
-        router.back();
-        return null;
-    }
+  const activity = resolvedActivityId
+    ? allActivities.find((item) => item.id === resolvedActivityId)
+    : null;
 
-    const handleShare = async () => {
-        try {
-            const token = tokenQuery.data || (await getOrCreateToken(currentUser.id));
-            await Share.share({
-                message: `Мой QR-код WeDo: ${token}`,
-            });
-        } catch (error) {
-            console.error('Error sharing:', error);
-        }
-    };
+  const tokenQuery = useQuery({
+    queryKey: ['qrToken', currentUser?.id, resolvedActivityId],
+    queryFn: async () => {
+      if (!currentUser || !resolvedActivityId) return '';
+      return getOrCreateToken(currentUser.id, resolvedActivityId);
+    },
+    enabled: Boolean(currentUser && resolvedActivityId && availableActivityIds.has(resolvedActivityId)),
+    staleTime: tokenTtlMs,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchInterval: Math.max(15000, Math.floor(tokenTtlMs * 0.8)),
+  });
 
-    return (
-        <>
-            <Stack.Screen
-                options={{
-                    headerShown: false,
-                }}
-            />
-            <SafeAreaView style={styles.container} edges={['top']}>
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
-                        <X size={24} color="#000" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Мой QR-код</Text>
-                    <TouchableOpacity style={styles.shareButton} onPress={handleShare}>
-                        <Share2 size={20} color="#000" />
-                    </TouchableOpacity>
+  useEffect(() => {
+    if (!isCodeCopied) return;
+
+    const timeoutId = setTimeout(() => {
+      setIsCodeCopied(false);
+    }, 1800);
+
+    return () => clearTimeout(timeoutId);
+  }, [isCodeCopied]);
+
+  if (!currentUser) {
+    router.back();
+    return null;
+  }
+
+  const token = tokenQuery.data ?? '';
+  const qrValue =
+    token && resolvedActivityId ? createQrPayload(token, currentUser.id, resolvedActivityId) : '';
+
+  const handleRefresh = async () => {
+    if (!resolvedActivityId || !availableActivityIds.has(resolvedActivityId)) return;
+    await issueToken(currentUser.id, resolvedActivityId);
+    await tokenQuery.refetch();
+    setIsCodeCopied(false);
+  };
+
+  const handleCopyCode = async () => {
+    if (!token) return;
+    await Clipboard.setStringAsync(token);
+    setIsCodeCopied(true);
+  };
+
+  if (!resolvedActivityId || !activity || !availableActivityIds.has(resolvedActivityId)) {
+    return <Redirect href="/qr?mode=participant" />;
+  }
+
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+          <Header
+            showBackButton
+            title="Мой QR"
+            rightButtons={[
+              {
+                icon: <RefreshCcw size={theme.spacing.iconSize} />,
+                onPress: () => void handleRefresh(),
+                variant: 'simple',
+              },
+            ]}
+            borderBottom={false}
+          />
+        </SafeAreaView>
+
+        <SafeAreaView edges={['bottom']} style={styles.contentSafeArea}>
+          <View style={styles.content}>
+            {tokenQuery.isPending && !qrValue ? (
+              <View style={styles.loadingBlock}>
+                <ActivityIndicator color={theme.colors.primary} />
+                <Text style={[styles.loadingText, { color: theme.colors.textSecondary }]}>
+                  Генерируем QR-код
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.qrBlock}>
+                <View style={styles.qrCanvas}>
+                  {qrValue ? (
+                    <QRCode
+                      value={qrValue}
+                      size={220}
+                      color={theme.colors.text}
+                      backgroundColor={theme.colors.background}
+                    />
+                  ) : null}
                 </View>
+                <Text style={[styles.activityTitle, { color: theme.colors.text }]}>
+                  {activity.title}
+                </Text>
+                <Text style={[styles.qrHint, { color: theme.colors.textSecondary }]}>
+                  Данный QR-код будет действителен в течение одной минуты
+                </Text>
+              </View>
+            )}
 
-                <View style={styles.content}>
-                    <View style={styles.userInfo}>
-                        <Avatar name={currentUser.name} size="large" imageUrl={currentUser.avatar} />
-                        <Text style={styles.userName}>{currentUser.name}</Text>
-                    </View>
-
-                    <View style={styles.qrContainer}>
-                        <View style={styles.qrPlaceholder}>
-                            <QrCode size={200} color="#000" strokeWidth={1.5} />
-                            <View style={styles.qrOverlay}>
-                                <Text style={styles.qrCode}>{tokenQuery.data}</Text>
-                            </View>
-                        </View>
-                    </View>
-
-                    <View style={styles.infoCard}>
-                        <Text style={styles.infoTitle}>Как использовать</Text>
-                        <Text style={styles.infoText}>
-                            Покажите этот QR-код организатору события для отметки посещения.
-                            QR-код обновляется примерно раз в минуту для защиты.
-                        </Text>
-                    </View>
-
-                    <TouchableOpacity
-                        style={styles.scanButton}
-                        onPress={() => router.push('/qr-scan')}
-                    >
-                        <Scan size={24} color="#fff" />
-                        <Text style={styles.scanButtonText}>Сканировать QR код участника</Text>
-                    </TouchableOpacity>
-
-                    <View style={styles.codeDisplay}>
-                        <Text style={styles.codeLabel}>Код для ручного ввода:</Text>
-                        <View style={styles.codeBox}>
-                            <Text style={styles.codeText}>{tokenQuery.data}</Text>
-                        </View>
-                    </View>
-                </View>
-            </SafeAreaView>
-        </>
-    );
+            <Pressable
+              onPress={() => void handleCopyCode()}
+              disabled={!token}
+              style={({ pressed }) => [
+                styles.codeSection,
+                {
+                  borderColor: isCodeCopied ? theme.colors.primary : theme.colors.border,
+                  backgroundColor: theme.colors.background,
+                  opacity: pressed && token ? 0.85 : 1,
+                },
+              ]}
+            >
+              <Text style={[styles.codeText, { color: theme.colors.text }]}>
+                {token || 'Код появится после генерации'}
+              </Text>
+              <Text
+                style={[
+                  styles.codeHint,
+                  { color: isCodeCopied ? theme.colors.primary : theme.colors.textSecondary },
+                ]}
+              >
+                {token ? (isCodeCopied ? 'Скопировано' : 'Нажмите, чтобы скопировать') : ' '}
+              </Text>
+            </Pressable>
+          </View>
+        </SafeAreaView>
+      </View>
+    </>
+  );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
     container: {
-        flex: 1,
-        backgroundColor: '#fff',
+      flex: 1,
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e5e5',
+    headerSafeArea: {
+      zIndex: 10,
     },
-    closeButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f5f5f5',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#000',
-    },
-    shareButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f5f5f5',
-        alignItems: 'center',
-        justifyContent: 'center',
+    contentSafeArea: {
+      flex: 1,
     },
     content: {
-        flex: 1,
-        padding: 20,
-        alignItems: 'center',
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingHorizontal: theme.spacing.screenPaddingHorizontal,
+      paddingVertical: theme.spacing.xl,
     },
-    userInfo: {
-        alignItems: 'center',
-        marginBottom: 32,
+    qrBlock: {
+      width: '100%',
+      alignItems: 'center',
+      gap: theme.spacing.md,
+      marginBottom: theme.spacing.xxxl * 2,
     },
-
-    userName: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#000',
-        marginBottom: 4,
+    qrCanvas: {
+      borderRadius: theme.spacing.radiusLarge,
+      padding: theme.spacing.lg,
+      backgroundColor: theme.colors.background,
     },
-    userAge: {
-        fontSize: 16,
-        color: '#666',
+    activityTitle: {
+      ...theme.typography.bodyLargeBold,
+      textAlign: 'center',
+      maxWidth: 320,
     },
-    qrContainer: {
-        marginBottom: 32,
+    qrHint: {
+      ...theme.typography.body,
+      textAlign: 'center',
+      lineHeight: 22,
+      maxWidth: 320,
     },
-    qrPlaceholder: {
-        width: 280,
-        height: 280,
-        borderRadius: 20,
-        backgroundColor: '#fff',
-        borderWidth: 2,
-        borderColor: '#000',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
+    loadingBlock: {
+      minHeight: 260,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.sm,
     },
-    qrOverlay: {
-        position: 'absolute',
-        bottom: 20,
-        left: 20,
-        right: 20,
+    loadingText: {
+      ...theme.typography.body,
     },
-    qrCode: {
-        fontSize: 11,
-        fontWeight: '600',
-        color: '#666',
-        textAlign: 'center',
-    },
-    infoCard: {
-        width: '100%',
-        padding: 16,
-        backgroundColor: '#f9f9f9',
-        borderRadius: 12,
-        marginBottom: 20,
-    },
-    infoTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#000',
-        marginBottom: 8,
-    },
-    infoText: {
-        fontSize: 14,
-        color: '#666',
-        lineHeight: 20,
-    },
-    codeDisplay: {
-        width: '100%',
-        marginTop: 12,
-    },
-    codeLabel: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#666',
-        marginBottom: 8,
-    },
-    codeBox: {
-        padding: 16,
-        backgroundColor: '#f5f5f5',
-        borderRadius: 12,
-        borderWidth: 1,
-        borderColor: '#e5e5e5',
-        borderStyle: 'dashed',
+    codeSection: {
+      borderRadius: theme.spacing.radius,
+      borderWidth: theme.spacing.borderWidth,
+      borderStyle: 'dashed',
+      padding: theme.spacing.lg,
+      minWidth: 260,
     },
     codeText: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#000',
-        textAlign: 'center',
-        fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+      ...theme.typography.bodyBold,
+      textAlign: 'center',
+      fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
     },
-    scanButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 12,
-        width: '100%',
-        backgroundColor: '#000',
-        paddingVertical: 16,
-        borderRadius: 12,
-        marginTop: 12,
+    codeHint: {
+      ...theme.typography.caption,
+      textAlign: 'center',
+      marginTop: theme.spacing.sm,
     },
-    scanButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#fff',
-    },
-});
+  });

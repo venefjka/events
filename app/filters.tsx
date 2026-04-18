@@ -71,7 +71,7 @@ export default function FiltersScreen() {
       style={[styles.container, { backgroundColor: theme.colors.background }]}
       edges={['top', 'bottom']}
     >
-      <Header title="Фильтры" showBackButton borderBottom={false} />
+      <Header title="Фильтры" showBackButton borderBottom={false} heightVariant="short" />
       <KeyboardAwareScrollView
         enableOnAndroid
         extraScrollHeight={-70}

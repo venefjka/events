@@ -95,9 +95,9 @@ export default function ProfileScreen() {
         },
         {
             key: 'qr',
-            label: 'Мой QR',
+            label: 'QR',
             icon: <QrCode />,
-            onPress: () => router.push('/my-qr'),
+            onPress: () => router.push('/qr?mode=participant'),
         },
         {
             key: 'subscriptions',

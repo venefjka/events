@@ -65,14 +65,14 @@ export default function UserHistoryScreen() {
         const attendedIds = new Set(getUserActivityIdsByStatus(userId, ['attended']));
         return allActivities.filter((activity) => {
           if (!attendedIds.has(activity.id)) return false;
-          return new Date(activity.startAt) < now;
+          return new Date(activity.endAt || activity.startAt) < now;
         });
       }
 
       const upcomingIds = new Set(getUserActivityIdsByStatus(userId, ['accepted', 'pending']));
       return allActivities.filter((activity) => {
         if (!upcomingIds.has(activity.id)) return false;
-        return new Date(activity.startAt) > now;
+        return new Date(activity.endAt || activity.startAt) >= now;
       });
     },
     enabled: Boolean(userId) && (activeTab === 'created' || canViewParticipationHistory),

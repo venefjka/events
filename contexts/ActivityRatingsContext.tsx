@@ -1,6 +1,6 @@
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ActivityRating, UserRecord } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivities } from '@/contexts/ActivitiesContext';
@@ -8,6 +8,7 @@ import { useActivities } from '@/contexts/ActivitiesContext';
 export const [ActivityRatingsProvider, useActivityRatings] = createContextHook(() => {
   const { currentUser } = useAuth();
   const { allActivities } = useActivities();
+  const queryClient = useQueryClient();
 
   const ratingsQuery = useQuery({
     queryKey: ['activityRatings'],
@@ -56,7 +57,7 @@ export const [ActivityRatingsProvider, useActivityRatings] = createContextHook((
     };
 
     const updatedRatings = [...activityRatings, activityRating];
-    saveRatingsMutation.mutate(updatedRatings);
+    await saveRatingsMutation.mutateAsync(updatedRatings);
 
     const organizerId = activity.organizerId;
     const organizerActivities = allActivities.filter((a) => a.organizerId === organizerId);
@@ -90,6 +91,11 @@ export const [ActivityRatingsProvider, useActivityRatings] = createContextHook((
         await AsyncStorage.setItem('currentUser', JSON.stringify(updatedCurrentUser));
       }
     }
+
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['auth'] }),
+      queryClient.invalidateQueries({ queryKey: ['activities'] }),
+    ]);
   };
 
   const getUserRating = (userId: string) => {

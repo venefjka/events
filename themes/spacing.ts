@@ -35,6 +35,7 @@ export const spacing = {
     iconSizeXSmall: 14,
     iconSizeLarge: 24,
     iconSizeXLarge: 28,
+    iconSizeXXLarge: 48,
     iconButtonHeight: 40,
 
     // Аватары

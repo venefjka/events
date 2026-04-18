@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 type StoredQrToken = {
   token: string;
   userId: string;
+  activityId: string;
   expiresAt: string;
 };
 
@@ -27,8 +28,8 @@ const saveTokens = async (tokens: StoredQrToken[]) => {
   await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(tokens));
 };
 
-const generateToken = (userId: string, now = nowMs()) =>
-  `qr:${userId}:${now}:${Math.random().toString(36).slice(2, 10)}`;
+const generateToken = (userId: string, activityId: string) =>
+  `qr:${userId}:${activityId}:${Math.random().toString(36).slice(2, 10)}`;
 
 export const [QrTokenProvider, useQrTokens] = createContextHook(() => {
   const queryClient = useQueryClient();
@@ -38,39 +39,61 @@ export const [QrTokenProvider, useQrTokens] = createContextHook(() => {
     queryFn: loadTokens,
   });
 
-  const getTokens = async () => tokensQuery.data ?? (await loadTokens());
+  const getTokens = async () => {
+    const cachedTokens = queryClient.getQueryData<StoredQrToken[]>(['qrTokens']);
+    if (cachedTokens) return cachedTokens;
 
-  const issueToken = async (userId: string) => {
+    if (tokensQuery.data) return tokensQuery.data;
+
+    const storedTokens = await loadTokens();
+    queryClient.setQueryData(['qrTokens'], storedTokens);
+    return storedTokens;
+  };
+
+  const issueToken = async (userId: string, activityId: string) => {
     const now = nowMs();
-    const token = generateToken(userId, now);
+    const token = generateToken(userId, activityId);
     const expiresAt = new Date(now + TOKEN_TTL_MS).toISOString();
     const tokens = await getTokens();
     const filtered = tokens.filter(
-      (entry) => entry.userId !== userId && !isExpired(entry, now)
+      (entry) =>
+        (entry.userId !== userId || entry.activityId !== activityId) &&
+        !isExpired(entry, now)
     );
-    const updated = [...filtered, { token, userId, expiresAt }];
+    const updated = [...filtered, { token, userId, activityId, expiresAt }];
     await saveTokens(updated);
-    queryClient.invalidateQueries({ queryKey: ['qrTokens'] });
+    queryClient.setQueryData(['qrTokens'], updated);
+    queryClient.setQueryData(['qrToken', userId, activityId], token);
     return token;
   };
 
-  const getActiveToken = async (userId: string) => {
+  const getActiveToken = async (userId: string, activityId: string) => {
     const now = nowMs();
     const tokens = await getTokens();
-    const active = tokens.find((entry) => entry.userId === userId && !isExpired(entry, now));
+    const active = tokens.find(
+      (entry) =>
+        entry.userId === userId &&
+        entry.activityId === activityId &&
+        !isExpired(entry, now)
+    );
     return active?.token ?? null;
   };
 
-  const getOrCreateToken = async (userId: string) => {
-    const active = await getActiveToken(userId);
-    if (active) return active;
-    return issueToken(userId);
+  const getOrCreateToken = async (userId: string, activityId: string) => {
+    const active = await getActiveToken(userId, activityId);
+    if (active) {
+      queryClient.setQueryData(['qrToken', userId, activityId], active);
+      return active;
+    }
+    return issueToken(userId, activityId);
   };
 
-  const resolveToken = async (token: string) => {
+  const resolveToken = async (token: string, activityId: string) => {
     const now = nowMs();
     const tokens = await getTokens();
-    const entry = tokens.find((stored) => stored.token === token);
+    const entry = tokens.find(
+      (stored) => stored.token === token && stored.activityId === activityId
+    );
     if (!entry || isExpired(entry, now)) return null;
     return entry.userId;
   };

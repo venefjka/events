@@ -64,7 +64,10 @@ export const getActivityDetailState = (
   const isPending = activity.pendingRequests.some((user) => user.id === currentUserId);
   const isSaved = savedActivities.includes(activity.id);
   const isCancelled = activity.status === 'cancelled';
-  const isPast = new Date(activity.startAt) < new Date();
+  const now = new Date();
+  const startDate = new Date(activity.startAt);
+  const endDate = new Date(activity.endAt ?? activity.startAt);
+  const isPast = endDate < now;
   const photoUrls = activity.photoUrls?.filter(Boolean) ?? [];
   const photoUri = photoUrls[0];
   const maxParticipants = activity.preferences?.maxParticipants ?? 0;
@@ -74,7 +77,11 @@ export const getActivityDetailState = (
   const placeTitle = activity.location.name || activity.location.address;
   const timeZoneLabel =
     activity.format === 'online' ? formatTimeZoneOffset(activity.startAt, activity.timeZone) : undefined;
-  const relativeTime = isPast ? 'Событие уже прошло' : getRelativeTime(activity.startAt);
+  const relativeTime = isPast
+    ? 'Событие уже прошло'
+    : startDate <= now
+      ? 'Событие идет сейчас'
+      : getRelativeTime(activity.startAt);
   const participants = activity.currentParticipants.filter(
     (participant) => participant.id !== activity.organizer.id
   );

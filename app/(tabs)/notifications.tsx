@@ -49,7 +49,7 @@ export default function NotificationsScreen() {
       <ScrollView style={[styles.notificationsList, { backgroundColor: theme.colors.surface }]} showsVerticalScrollIndicator={false}>
         {userNotifications.length === 0 && (
           <EmptyState
-            icon={<Bell />}
+            icon={<Bell size={theme.spacing.iconSizeXXLarge} color={theme.colors.textSecondary} />}
             title="Нет уведомлений"
             description="Здесь будут отображаться важные обновления"
           />

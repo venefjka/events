@@ -20,6 +20,13 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const queryClient = useQueryClient();
 
+  const refreshSessionQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ['auth'] });
+    queryClient.invalidateQueries({ queryKey: ['activities'] });
+    queryClient.invalidateQueries({ queryKey: ['activityParticipation'] });
+    queryClient.invalidateQueries({ queryKey: ['qrTokens'] });
+  };
+
   const authQuery = useQuery({
     queryKey: ['auth'],
     queryFn: async () => {
@@ -112,6 +119,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         toRememberedUser(user),
         ...prev.filter((u) => u.id !== user.id),
       ]);
+      refreshSessionQueries();
       queryClient.invalidateQueries({ queryKey: ['userActivities', user.id] });
       queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
     },
@@ -161,6 +169,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
       setCurrentUser(user);
       setLocalUsers(updatedLocalUsers);
       setRememberedUsers(updatedRemembered);
+      refreshSessionQueries();
       queryClient.invalidateQueries({ queryKey: ['userActivities', user.id] });
       queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
     },
@@ -199,6 +208,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
         toRememberedUser(user),
         ...prev.filter((u) => u.id !== user.id),
       ]);
+      refreshSessionQueries();
       queryClient.invalidateQueries({ queryKey: ['userActivities', user.id] });
       queryClient.invalidateQueries({ queryKey: ['notifications', user.id] });
     },

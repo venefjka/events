@@ -19,6 +19,7 @@ export type HeaderProps = {
     backgroundColor?: string;
     borderBottom?: boolean;
     alignLeftIfNoLeftButtons?: boolean;
+    heightVariant?: 'default' | 'short';
 };
 
 export const Header: React.FC<HeaderProps> = ({
@@ -30,6 +31,7 @@ export const Header: React.FC<HeaderProps> = ({
     backgroundColor,
     borderBottom = true,
     alignLeftIfNoLeftButtons = true,
+    heightVariant = 'default',
 }) => {
     const theme = useTheme();
 
@@ -87,7 +89,7 @@ export const Header: React.FC<HeaderProps> = ({
                 borderBottomWidth: borderBottom ? theme.spacing.borderWidth : 0,
                 paddingHorizontal: theme.spacing.screenPaddingHorizontal,
                 paddingBottom: theme.spacing.xs,
-                height: showBackButton && rightButtons.length == 0 ? theme.spacing.headerHeightSmall : theme.spacing.headerHeight,
+                height: heightVariant === 'short' ? theme.spacing.headerHeightSmall : theme.spacing.headerHeight,
                 backgroundColor: backgroundColor || theme.colors.background,
             },
         ]}>

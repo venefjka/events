@@ -171,20 +171,20 @@ export default function ExploreScreen() {
     ];
 
     const renderEmptyState = () => {
-        let icon = <Sprout size={48} />;
+        let icon = <Sprout size={theme.spacing.iconSizeXXLarge} />;
         let title = 'Нет событий';
         let description = 'Попробуйте изменить фильтры или станьте первым, кто создаст новое событие';
 
         if (activeTab === 'saved') {
-            icon = <Bookmark size={48} />
+            icon = <Bookmark size={theme.spacing.iconSizeXXLarge} />
             title = 'Нет сохраненных событий';
             description = 'Сохраняйте интересные события, чтобы вернуться к ним позже';
         } else if (searchQuery) {
-            icon = <Search size={48} />
+            icon = <Search size={theme.spacing.iconSizeXXLarge} />
             title = 'Ничего не найдено';
             description = 'Попробуйте изменить запрос';
         } else if (activeTab === 'recommended') {
-            icon = <Star size={48} />
+            icon = <Star size={theme.spacing.iconSizeXXLarge} />
             title = 'Нет рекомендаций';
             description = 'Заполните интересы в профиле, чтобы получать персональные рекомендации';
         }

@@ -140,7 +140,7 @@ export const MultiStepForm: React.FC<MultiStepFormProps> = ({
           onBackPress={handleBack}
           borderBottom={false}
           backgroundColor={theme.colors.surface}
-
+          heightVariant="short"
         />
 
         {mode === 'register' && currentStepConfig && (

@@ -1,472 +1,351 @@
-import React, { useState } from 'react';
-import {
-    View,
-    Text,
-    StyleSheet,
-    TouchableOpacity,
-    TextInput,
-    Alert,
-    ScrollView,
-} from 'react-native';
-import { router, useLocalSearchParams, Stack } from 'expo-router';
+import React, { useMemo, useRef, useState } from 'react';
+import { Alert, StyleSheet, Text, View } from 'react-native';
+import { Redirect, Stack, router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { QrCode, X } from 'lucide-react-native';
+import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { Camera, ScanLine } from 'lucide-react-native';
+import { qrApi } from '@/api/qr';
 import { useActivities } from '@/contexts/ActivitiesContext';
 import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQrTokens } from '@/contexts/QrTokenContext';
+import { Button } from '@/components/ui/Button';
+import { Header } from '@/components/ui/Header';
+import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/themes/useTheme';
-import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
-
-// todo: сделать с нуля
+import { extractQrPayload, extractQrToken } from '@/utils/qr';
+import { formatActivityDate } from '@/utils/date';
 
 export default function QRScanScreen() {
-    const { activityId } = useLocalSearchParams<{ activityId?: string }>();
-    const { currentUser, localUsers } = useAuth();
-    const { allActivities } = useActivities();
-    const { markAttendance, getParticipationStatus } = useActivityParticipation();
-    const { resolveToken } = useQrTokens();
-    const theme = useTheme();
-    const [manualCode, setManualCode] = useState('');
-    const [selectedActivityId, setSelectedActivityId] = useState<string | null>(activityId || null);
+  const { activityId } = useLocalSearchParams<{ activityId?: string }>();
+  const { currentUser, localUsers } = useAuth();
+  const { allActivities } = useActivities();
+  const { markAttendance, getParticipationStatus } = useActivityParticipation();
+  const { resolveToken } = useQrTokens();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const [manualCode, setManualCode] = useState('');
+  const [isScanLocked, setIsScanLocked] = useState(false);
+  const lastProcessedCameraValueRef = useRef<string | null>(null);
+  const [permission, requestPermission] = useCameraPermissions();
 
-    const userCreatedActivities = allActivities.filter((a) => a.organizer.id === currentUser?.id);
-    const activity = selectedActivityId ? allActivities.find((a) => a.id === selectedActivityId) : null;
+  const resolvedActivityId = Array.isArray(activityId) ? activityId[0] : activityId;
+  const activity = resolvedActivityId
+    ? allActivities.find((item) => item.id === resolvedActivityId)
+    : null;
 
-    if (!currentUser) {
-        router.back();
-        return null;
-    }
+  if (!currentUser) {
+    router.back();
+    return null;
+  }
 
-
-    const handleScanCode = async (code: string) => {
-        if (activity) {
-            const resolvedUserId = await resolveToken(code);
-            const legacyUser = localUsers.find((user) => user.qrCode === code);
-            const userId = resolvedUserId ?? legacyUser?.id;
-            const participant = localUsers.find((user) => user.id === userId);
-
-            if (!userId) {
-                Alert.alert('Ошибка', 'Пользователь не зарегистрирован на эту активность');
-                return;
-            }
-
-            const status = getParticipationStatus(activity.id, userId);
-            if (status !== 'accepted' && status !== 'attended') {
-                Alert.alert('Ошибка', 'Пользователь не зарегистрирован на эту активность');
-                return;
-            }
-            if (status === 'attended') {
-                Alert.alert('Внимание', 'Посещение уже отмечено для этого участника');
-                return;
-            }
-
-            markAttendance(activity.id, userId);
-            Alert.alert(
-                'Успешно',
-                `Посещение отмечено для ${participant?.name ?? userId}`,
-                [{ text: 'OK' }]
-            );
-            setManualCode('');
-        }
-    };
-
-    const handleManualInput = () => {
-        if (!manualCode.trim()) {
-            Alert.alert('Ошибка', 'Введите код участника');
-            return;
-        }
-        handleScanCode(manualCode.trim());
-    };
-
-
-    if (!selectedActivityId) {
-        return (
-            <>
-                <Stack.Screen
-                    options={{
-                        headerShown: false,
-                    }}
-                />
-                <SafeAreaView style={styles.container} edges={['top']}>
-                    <View style={styles.header}>
-                        <TouchableOpacity style={styles.closeButton} onPress={() => router.back()}>
-                            <X size={24} color="#000" />
-                        </TouchableOpacity>
-                        <Text style={styles.headerTitle}>Выберите мероприятие</Text>
-                        <View style={styles.placeholder} />
-                    </View>
-
-                    <ScrollView style={styles.content}>
-                        <Text style={styles.selectTitle}>Ваши мероприятия</Text>
-                        <Text style={styles.selectSubtitle}>
-                            Выберите мероприятие для отметки посещаемости
-                        </Text>
-
-                        {userCreatedActivities.length > 0 ? (
-                            userCreatedActivities.map((act) => (
-                                <TouchableOpacity
-                                    key={act.id}
-                                    style={styles.activitySelectCard}
-                                    onPress={() => setSelectedActivityId(act.id)}
-                                >
-                                    <View style={styles.activitySelectIcon}>
-                                        {renderCategoryIcon(act.category, theme.spacing.iconSizeXLarge)}
-                                    </View>
-                                    <View style={styles.activitySelectInfo}>
-                                        <Text style={styles.activitySelectTitle}>{act.title}</Text>
-                                        <Text style={styles.activitySelectTime}>
-                                            {new Date(act.startAt).toLocaleString('ru', {
-                                                day: 'numeric',
-                                                month: 'long',
-                                                hour: '2-digit',
-                                                minute: '2-digit',
-                                            })}
-                                        </Text>
-                                        <Text style={styles.activitySelectStats}>
-                                            {act.currentParticipants.length} зарегистрировано • {act.attendedUsers.length} отмечено
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ))
-                        ) : (
-                            <View style={styles.emptyState}>
-                                <Text style={styles.emptyStateIcon}>📅</Text>
-                                <Text style={styles.emptyStateText}>У вас нет созданных мероприятий</Text>
-                            </View>
-                        )}
-                    </ScrollView>
-                </SafeAreaView>
-            </>
-        );
-    }
-
-    if (!activity) {
-        router.back();
-        return null;
-    }
-
-    return (
-        <>
-            <Stack.Screen
-                options={{
-                    headerShown: false,
-                }}
-            />
-            <SafeAreaView style={styles.container} edges={['top']}>
-                <View style={styles.header}>
-                    <TouchableOpacity
-                        style={styles.closeButton}
-                        onPress={() => {
-                            if (activityId) {
-                                router.back();
-                            } else {
-                                setSelectedActivityId(null);
-                            }
-                        }}
-                    >
-                        <X size={24} color="#000" />
-                    </TouchableOpacity>
-                    <Text style={styles.headerTitle}>Отметить посещение</Text>
-                    <View style={styles.placeholder} />
-                </View>
-
-                <View style={styles.content}>
-                    <View style={styles.activityCard}>
-                        <View style={styles.activityIcon}>
-                            {renderCategoryIcon(activity.category, theme.spacing.iconSizeLarge * 2)}
-                        </View>
-                        <Text style={styles.activityTitle}>{activity.title}</Text>
-                        <Text style={styles.activityTime}>
-                            {new Date(activity.startAt).toLocaleString('ru', {
-                                day: 'numeric',
-                                month: 'long',
-                                hour: '2-digit',
-                                minute: '2-digit',
-                            })}
-                        </Text>
-                    </View>
-
-                    <View style={styles.scanArea}>
-                        <View style={styles.qrPlaceholder}>
-                            <QrCode size={120} color="#000" />
-                            <Text style={styles.qrPlaceholderText}>
-                                Камера сканирования QR-кода
-                            </Text>
-                            <Text style={styles.qrPlaceholderSubtext}>
-                                (Требует нативной реализации)
-                            </Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.dividerContainer}>
-                        <View style={styles.dividerLine} />
-                        <Text style={styles.dividerText}>или</Text>
-                        <View style={styles.dividerLine} />
-                    </View>
-
-                    <View style={styles.manualInput}>
-                        <Text style={styles.manualInputLabel}>Ввести код вручную</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="user-X-qr"
-                            placeholderTextColor="#999"
-                            value={manualCode}
-                            onChangeText={setManualCode}
-                            autoCapitalize="none"
-                        />
-                        <TouchableOpacity style={styles.submitButton} onPress={handleManualInput}>
-                            <Text style={styles.submitButtonText}>Отметить посещение</Text>
-                        </TouchableOpacity>
-                    </View>
-
-                    <View style={styles.stats}>
-                        <Text style={styles.statsTitle}>Статистика</Text>
-                        <View style={styles.statsRow}>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{activity.currentParticipants.length}</Text>
-                                <Text style={styles.statLabel}>Зарегистрировано</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={styles.statValue}>{activity.attendedUsers.length}</Text>
-                                <Text style={styles.statLabel}>Отмечено</Text>
-                            </View>
-                            <View style={styles.statItem}>
-                                <Text style={[styles.statValue, styles.statValuePending]}>
-                                    {activity.currentParticipants.length - activity.attendedUsers.length}
-                                </Text>
-                                <Text style={styles.statLabel}>Ожидается</Text>
-                            </View>
-                        </View>
-                    </View>
-                </View>
-            </SafeAreaView>
-        </>
+  const showScanAlert = (title: string, message: string) => {
+    Alert.alert(
+      title,
+      message,
+      [
+        {
+          text: 'OK',
+          onPress: () => setIsScanLocked(false),
+        },
+      ],
+      {
+        cancelable: false,
+        onDismiss: () => setIsScanLocked(false),
+      }
     );
+  };
+
+  const resolveScannedUserId = async (rawValue: string) => {
+    if (!activity) return null;
+
+    const payload = extractQrPayload(rawValue);
+    if (payload?.activityId && payload.activityId !== activity.id) {
+      return null;
+    }
+
+    const token = extractQrToken(rawValue);
+    if (!token) return null;
+
+    const localResolvedUserId = await resolveToken(token, activity.id);
+    if (localResolvedUserId) return localResolvedUserId;
+
+    if (
+      payload?.activityId === activity.id &&
+      typeof payload.userId === 'string' &&
+      payload.userId.trim()
+    ) {
+      return payload.userId.trim();
+    }
+
+    try {
+      const response = await qrApi.resolveToken({ token });
+      return response.user.id;
+    } catch {
+      const legacyUser = localUsers.find((user) => user.qrCode === token);
+      return legacyUser?.id ?? null;
+    }
+  };
+
+  const handleAttendance = async (rawValue: string) => {
+    if (!activity) return;
+
+    const token = extractQrToken(rawValue);
+    const userId = await resolveScannedUserId(rawValue);
+    const participant = localUsers.find((user) => user.id === userId);
+    const status = userId ? getParticipationStatus(activity.id, userId) : null;
+
+    if (!userId) {
+      showScanAlert('Ошибка', 'Не удалось распознать код участника или QR относится к другому событию.');
+      return;
+    }
+
+    const isAlreadyAttended =
+      status === 'attended' || activity.attendedUsers.includes(userId);
+    const isRegisteredParticipant =
+      status === 'accepted' ||
+      isAlreadyAttended ||
+      (userId !== activity.organizer.id &&
+        activity.currentParticipants.some((user) => user.id === userId));
+
+    if (!isRegisteredParticipant) {
+      showScanAlert('Ошибка', 'Пользователь не зарегистрирован на это мероприятие.');
+      return;
+    }
+
+    if (isAlreadyAttended) {
+      showScanAlert('Уже отмечен', 'Посещение уже отмечено для этого участника.');
+      return;
+    }
+
+    if (token) {
+      try {
+        await qrApi.scanAttendance(activity.id, { token });
+      } catch {
+        // TODO(api): keep local fallback until backend flow is final.
+      }
+    }
+
+    await markAttendance(activity.id, userId);
+    setManualCode('');
+    showScanAlert('Успешно', `Посещение отмечено для ${participant?.name ?? userId}.`);
+  };
+
+  const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
+    if (isScanLocked) return;
+    if (lastProcessedCameraValueRef.current === data) return;
+
+    lastProcessedCameraValueRef.current = data;
+    setIsScanLocked(true);
+
+    await handleAttendance(data);
+  };
+
+  const handleManualSubmit = async () => {
+    if (!manualCode.trim()) {
+      Alert.alert('Ошибка', 'Введите код участника.');
+      return;
+    }
+
+    try {
+      await handleAttendance(manualCode.trim());
+    } finally {
+      setManualCode('');
+    }
+  };
+
+  if (!resolvedActivityId || !activity || activity.organizer.id !== currentUser.id) {
+    return <Redirect href="/qr?mode=organizer" />;
+  }
+
+  const cameraPermissionGranted = permission?.granted ?? false;
+  const attendeesCount = Math.max(
+    0,
+    activity.attendedUsers.filter((userId) => userId !== activity.organizer.id).length
+  );
+  const expectedAttendeesCount = Math.max(0, activity.currentParticipants.length - 1);
+
+  return (
+    <>
+      <Stack.Screen options={{ headerShown: false }} />
+      <View style={[styles.container, { backgroundColor: theme.colors.background }]}>
+        <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
+          <Header
+            showBackButton
+            title="QR-сканер"
+            onBackPress={() => router.back()}
+            borderBottom={false}
+          />
+        </SafeAreaView>
+
+        <SafeAreaView edges={['bottom']} style={styles.contentSafeArea}>
+          <KeyboardAwareScrollView
+            style={styles.keyboardAwareScroll}
+            contentContainerStyle={styles.keyboardAwareContent}
+            enableOnAndroid
+            keyboardShouldPersistTaps="always"
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+          >
+            <View style={styles.content}>
+              <View style={styles.topMeta}>
+                <Text style={[styles.activityTitle, { color: theme.colors.text }]}>
+                  {activity.title}
+                </Text>
+                <Text style={[styles.activityMeta, { color: theme.colors.textSecondary }]}>
+                  {formatActivityDate(activity.startAt)}
+                </Text>
+                <Text style={[styles.activityMeta, { color: theme.colors.textSecondary }]}>
+                  Отмечено участников: {attendeesCount}/{expectedAttendeesCount}
+                </Text>
+              </View>
+
+              {!permission ? (
+                <View style={styles.placeholder}>
+                  <Text style={[styles.helperText, { color: theme.colors.textSecondary }]}>
+                    Проверяем доступ к камере...
+                  </Text>
+                </View>
+              ) : cameraPermissionGranted ? (
+                <View style={styles.cameraFrame}>
+                  <CameraView
+                    style={StyleSheet.absoluteFillObject}
+                    facing="back"
+                    barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
+                    onBarcodeScanned={isScanLocked ? undefined : handleBarcodeScanned}
+                  />
+                  <View style={styles.cameraOverlay}>
+                    <View style={styles.scanWindow} />
+                    <Text style={styles.scanHintText}>Наведите камеру на QR-код участника</Text>
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.placeholder}>
+                  <ScanLine
+                    size={theme.spacing.iconSizeXXLarge}
+                    color={theme.colors.textSecondary}
+                  />
+                  <Text style={[styles.placeholderTitle, { color: theme.colors.text }]}>
+                    Нужен доступ к камере, чтобы начать сканирование
+                  </Text>
+                  <Button
+                    title={'Запросить доступ'}
+                    variant="primary"
+                    size="small"
+                    onPress={() => void requestPermission()}
+                  />
+                </View>
+              )}
+
+              <View style={styles.manualSection}>
+                <Input
+                  value={manualCode}
+                  onChangeText={setManualCode}
+                  placeholder="Вставьте токен или QR payload"
+                  autoCapitalize="none"
+                />
+                <Button
+                  title="Отметить по коду"
+                  variant="primary"
+                  size="medium"
+                  fullWidth
+                  onPress={() => void handleManualSubmit()}
+                />
+              </View>
+            </View>
+          </KeyboardAwareScrollView>
+        </SafeAreaView>
+      </View>
+    </>
+  );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (theme: ReturnType<typeof useTheme>) =>
+  StyleSheet.create({
     container: {
-        flex: 1,
-        backgroundColor: '#fff',
+      flex: 1,
     },
-    header: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        paddingHorizontal: 20,
-        paddingVertical: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e5e5',
+    headerSafeArea: {
+      zIndex: 10,
     },
-    closeButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f5f5f5',
-        alignItems: 'center',
-        justifyContent: 'center',
+    contentSafeArea: {
+      flex: 1,
     },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#000',
+    keyboardAwareScroll: {
+      flex: 1,
     },
-    placeholder: {
-        width: 40,
-    },
-    selectTitle: {
-        fontSize: 24,
-        fontWeight: '700',
-        color: '#000',
-        marginBottom: 8,
-    },
-    selectSubtitle: {
-        fontSize: 15,
-        color: '#666',
-        marginBottom: 24,
-    },
-    activitySelectCard: {
-        flexDirection: 'row',
-        padding: 16,
-        backgroundColor: '#f9f9f9',
-        borderRadius: 12,
-        marginBottom: 12,
-        borderWidth: 1,
-        borderColor: '#e5e5e5',
-    },
-    activitySelectIcon: {
-        width: 60,
-        height: 60,
-        borderRadius: 12,
-        backgroundColor: '#fff',
-        alignItems: 'center',
-        justifyContent: 'center',
-        marginRight: 16,
-    },
-    activitySelectInfo: {
-        flex: 1,
-        justifyContent: 'center',
-    },
-    activitySelectTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        color: '#000',
-        marginBottom: 4,
-    },
-    activitySelectTime: {
-        fontSize: 14,
-        color: '#666',
-        marginBottom: 4,
-    },
-    activitySelectStats: {
-        fontSize: 13,
-        color: '#999',
-    },
-    emptyState: {
-        alignItems: 'center',
-        paddingVertical: 60,
-    },
-    emptyStateIcon: {
-        fontSize: 64,
-        marginBottom: 16,
-    },
-    emptyStateText: {
-        fontSize: 16,
-        color: '#999',
-        textAlign: 'center',
+    keyboardAwareContent: {
+      flexGrow: 1,
     },
     content: {
-        flex: 1,
-        padding: 20,
+      flexGrow: 1,
+      justifyContent: 'center',
+      paddingHorizontal: theme.spacing.screenPaddingHorizontal,
+      paddingVertical: theme.spacing.xl,
+      gap: theme.spacing.xxl * 2,
     },
-    activityCard: {
-        alignItems: 'center',
-        padding: 20,
-        backgroundColor: '#f9f9f9',
-        borderRadius: 16,
-        marginBottom: 24,
-    },
-    activityIcon: {
-        marginBottom: 8,
-        alignItems: 'center',
-        justifyContent: 'center',
+    topMeta: {
+      alignItems: 'center',
+      gap: theme.spacing.sm,
     },
     activityTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#000',
-        marginBottom: 4,
-        textAlign: 'center',
+      ...theme.typography.bodyLargeBold,
+      textAlign: 'center',
     },
-    activityTime: {
-        fontSize: 14,
-        color: '#666',
+    activityMeta: {
+      ...theme.typography.body,
+      textAlign: 'center',
     },
-    scanArea: {
-        alignItems: 'center',
-        marginBottom: 24,
+    cameraFrame: {
+      position: 'relative',
+      overflow: 'hidden',
+      borderRadius: theme.spacing.radiusXLarge,
+      backgroundColor: '#000',
+      aspectRatio: 1,
     },
-    qrPlaceholder: {
-        width: 250,
-        height: 250,
-        borderRadius: 16,
-        backgroundColor: '#f5f5f5',
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 2,
-        borderColor: '#e5e5e5',
-        borderStyle: 'dashed',
+    cameraOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'rgba(0, 0, 0, 0.24)',
+      gap: theme.spacing.lg,
+      padding: theme.spacing.xl,
     },
-    qrPlaceholderText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#666',
-        marginTop: 12,
-        textAlign: 'center',
+    scanWindow: {
+      width: '74%',
+      height: '74%',
+      borderRadius: theme.spacing.radiusLarge,
+      borderWidth: theme.spacing.borderWidthThick,
+      borderColor: '#FFFFFF',
+      backgroundColor: 'transparent',
     },
-    qrPlaceholderSubtext: {
-        fontSize: 12,
-        color: '#999',
-        marginTop: 4,
-        textAlign: 'center',
+    scanHintText: {
+      color: '#FFFFFF',
+      textAlign: 'center',
+      ...theme.typography.body,
     },
-    dividerContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 24,
+    placeholder: {
+      minHeight: 280,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: theme.spacing.lg,
+      padding: theme.spacing.xl,
+      borderWidth: theme.spacing.borderWidth,
+      borderColor: theme.colors.border,
+      borderStyle: 'dashed',
+      borderRadius: theme.spacing.radiusXLarge,
     },
-    dividerLine: {
-        flex: 1,
-        height: 1,
-        backgroundColor: '#e5e5e5',
+    placeholderTitle: {
+      ...theme.typography.bodyLargeBold,
+      textAlign: 'center',
     },
-    dividerText: {
-        fontSize: 14,
-        color: '#999',
-        marginHorizontal: 16,
+    helperText: {
+      ...theme.typography.body,
+      lineHeight: 22,
+      textAlign: 'center',
     },
-    manualInput: {
-        marginBottom: 24,
+    manualSection: {
+      gap: theme.spacing.lg,
     },
-    manualInputLabel: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#000',
-        marginBottom: 12,
-    },
-    input: {
-        backgroundColor: '#f9f9f9',
-        borderRadius: 12,
-        padding: 16,
-        fontSize: 15,
-        color: '#000',
-        borderWidth: 1,
-        borderColor: '#e5e5e5',
-        marginBottom: 12,
-    },
-    submitButton: {
-        backgroundColor: '#000',
-        paddingVertical: 16,
-        borderRadius: 12,
-        alignItems: 'center',
-    },
-    submitButtonText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#fff',
-    },
-    stats: {
-        padding: 20,
-        backgroundColor: '#f9f9f9',
-        borderRadius: 16,
-    },
-    statsTitle: {
-        fontSize: 16,
-        fontWeight: '700',
-        color: '#000',
-        marginBottom: 16,
-        textAlign: 'center',
-    },
-    statsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-around',
-    },
-    statItem: {
-        alignItems: 'center',
-    },
-    statValue: {
-        fontSize: 28,
-        fontWeight: '700',
-        color: '#000',
-        marginBottom: 4,
-    },
-    statValuePending: {
-        color: '#999',
-    },
-    statLabel: {
-        fontSize: 13,
-        color: '#666',
-    },
-});
-
+  });

@@ -1,12 +1,12 @@
 import { useTheme } from "@/themes/useTheme";
 import { Tabs, usePathname } from "expo-router";
-import { Map, User, Bell, ToolCase } from "lucide-react-native";
+import { Map, User, Bell, ToolCase, QrCode } from "lucide-react-native";
 import React from "react";
 
 export default function TabLayout() {
     const theme = useTheme();
     const path = usePathname();
-    const isIndex = path === "/";
+    const isIndex = (path === "/" || path === "/qr");
     return (
         <Tabs
             screenOptions={{
@@ -32,6 +32,13 @@ export default function TabLayout() {
                 options={{
                     title: "",
                     tabBarIcon: ({ color, size }) => <ToolCase color={color} size={size} />,
+                }}
+            />
+            <Tabs.Screen
+                name="qr"
+                options={{
+                    title: "",
+                    tabBarIcon: ({ color, size }) => <QrCode color={color} size={size} />,
                 }}
             />
             <Tabs.Screen

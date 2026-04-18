@@ -26,6 +26,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivities } from '@/contexts/ActivitiesContext';
 import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
+import { useActivityRatings } from '@/contexts/ActivityRatingsContext';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
@@ -41,6 +42,7 @@ import { ActivityDetailHero } from '@/components/activity-detail/ActivityDetailH
 import { PeopleSummarySection } from '@/components/activity-detail/PeopleSummarySection';
 import { LocationSection } from '@/components/activity-detail/LocationSection';
 import { ParticipantsSheet } from '@/components/activity-detail/ParticipantsSheet';
+import { RateActivitySheet } from '@/components/activity-detail/RateActivitySheet';
 import { RequestsSheet } from '@/components/activity-detail/RequestsSheet';
 import type { HeroChip } from '@/components/activity-detail/ActivityDetailHero';
 
@@ -49,15 +51,18 @@ export default function ActivityDetailScreen() {
   const activityId = Array.isArray(id) ? id[0] : id;
   const { currentUser } = useAuth();
   const { allActivities, savedActivities, toggleSaveActivity, cancelActivity } = useActivities();
+  const { hasUserRated } = useActivityRatings();
   const {
     requestJoinActivity,
     leaveActivity,
     cancelJoinRequest,
     approveJoinRequest,
     rejectJoinRequest,
+    getParticipationStatus,
   } = useActivityParticipation();
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
   const [isRequestsSheetVisible, setIsRequestsSheetVisible] = useState(false);
+  const [isRateSheetVisible, setIsRateSheetVisible] = useState(false);
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
@@ -69,6 +74,14 @@ export default function ActivityDetailScreen() {
     () => (activity && currentUser ? getActivityDetailState(activity, currentUser.id, savedActivities) : null),
     [activity, currentUser?.id, savedActivities]
   );
+  const participationStatus =
+    activity && currentUser ? getParticipationStatus(activity.id, currentUser.id) : null;
+  const isParticipant = participationStatus === 'accepted' || participationStatus === 'attended';
+  const isPending = participationStatus === 'pending';
+  const isAttendanceMarked = participationStatus === 'attended';
+  const isActivityRated = Boolean(activity && currentUser && hasUserRated(activity.id, currentUser.id));
+  const shouldShowFooterAfterEnd =
+    isParticipant && (isAttendanceMarked || isActivityRated);
 
   const heroChips = useMemo<HeroChip[]>(() => {
     if (!activity || !detailState) return [];
@@ -128,7 +141,7 @@ export default function ActivityDetailScreen() {
           <EmptyState
             icon={
               <ImageIcon
-                size={theme.spacing.iconSizeXLarge + theme.spacing.xxl - theme.spacing.xs}
+                size={theme.spacing.iconSizeXXLarge}
                 color={theme.colors.textSecondary}
               />
             }
@@ -160,17 +173,17 @@ export default function ActivityDetailScreen() {
       detailState.isCancelled ||
       detailState.isPast ||
       detailState.isFull ||
-      detailState.isParticipant ||
-      detailState.isPending
+      isParticipant ||
+      isPending
     ) {
       return;
     }
 
-    requestJoinActivity(activity.id);
+    void requestJoinActivity(activity.id);
   };
 
   const handleLeave = () => {
-    if (!detailState.isParticipant) return;
+    if (!isParticipant) return;
 
     const hoursUntilEvent = getHoursUntilEvent(activity.startAt);
     const hasShortNotice = hoursUntilEvent < 2 && hoursUntilEvent > 0;
@@ -188,7 +201,7 @@ export default function ActivityDetailScreen() {
   };
 
   const handleCancelRequest = () => {
-    if (!detailState.isPending) return;
+    if (!isPending) return;
 
     Alert.alert('Отменить заявку', 'Удалить вашу заявку на участие?', [
       { text: 'Нет', style: 'cancel' },
@@ -229,7 +242,7 @@ export default function ActivityDetailScreen() {
               onPress: handleShare,
               variant: 'surface',
             },
-            ...(detailState.isOrganizer
+            ...(detailState.isOrganizer && !detailState.isPast
               ? [
                 {
                   icon: <Pencil size={theme.spacing.iconSizeMedium} />,
@@ -365,7 +378,7 @@ export default function ActivityDetailScreen() {
         </View>
       </ScrollView>
 
-      {!detailState.isPast && !detailState.isCancelled ? (
+      {(!detailState.isCancelled && (!detailState.isPast || shouldShowFooterAfterEnd)) ? (
         <SafeAreaView
           edges={['bottom']}
           style={[
@@ -404,23 +417,32 @@ export default function ActivityDetailScreen() {
                 />
               ) : null}
             </View>
-          ) : detailState.isParticipant ? (
+          ) : isParticipant ? (
             <View style={styles.footerButtons}>
               <Button
-                title="QR-код"
+                title={isActivityRated ? 'Оценено' : isAttendanceMarked ? 'Оценить' : 'QR-код'}
                 variant="primary"
                 size="medium"
                 style={{ flex: 1 }}
-                onPress={() => router.push('/my-qr')}
+                disabled={isActivityRated}
+                onPress={() =>
+                  isActivityRated
+                    ? undefined
+                    : isAttendanceMarked
+                      ? setIsRateSheetVisible(true)
+                      : router.push(`/my-qr?activityId=${activity.id}`)
+                }
               />
-              <Button title="Выйти"
-                variant="secondary"
-                size="medium"
-                style={{ flex: 1 }}
-                onPress={handleLeave}
-              />
+              {!isActivityRated && !isAttendanceMarked ? (
+                <Button title="Выйти"
+                  variant="secondary"
+                  size="medium"
+                  style={{ flex: 1 }}
+                  onPress={handleLeave}
+                />
+              ) : null}
             </View>
-          ) : detailState.isPending ? (
+          ) : isPending ? (
             <Button
               title="Отменить заявку"
               variant="secondary"
@@ -450,6 +472,11 @@ export default function ActivityDetailScreen() {
           setIsParticipantsSheetVisible(false);
           navigateToUser(participantId);
         }}
+      />
+      <RateActivitySheet
+        visible={isRateSheetVisible}
+        activity={activity}
+        onClose={() => setIsRateSheetVisible(false)}
       />
 
       <RequestsSheet
