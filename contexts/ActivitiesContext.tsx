@@ -13,18 +13,20 @@ import { categories } from '../constants/categories';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useAuth } from './AuthContext';
-import { buildUserPublic } from '@/utils/user';
+import { useUserActivityFeed } from './UserActivityFeedContext';
+import { useUsers } from './UsersContext';
 import {
   ActivityDraft,
   buildActivity,
-  buildUserMap,
   normalizeActivityRecord,
   toUserPublicFallback,
 } from '../utils/activityUtils';
 import { normalizeParticipationList } from '@/utils/participation';
 
 export const [ActivitiesProvider, useActivities] = createContextHook(() => {
-  const { currentUser, localUsers } = useAuth();
+  const { currentUser } = useAuth();
+  const { appendEvent } = useUserActivityFeed();
+  const { usersMap, getUserPublic } = useUsers();
 
   const activitiesQuery = useQuery({
     queryKey: ['activities'],
@@ -64,16 +66,6 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
   const isUsingMockActivities = activitiesQuery.data?.isMock ?? false;
   const participationRecords = participationQuery.data || [];
 
-  const userMap = useMemo(() => {
-    const usersForMap = isUsingMockActivities ? [...mockUsers, ...localUsers] : localUsers;
-    return buildUserMap(usersForMap, currentUser);
-  }, [localUsers, currentUser, isUsingMockActivities]);
-
-  const getUserPublic = (user?: UserRecord | null, fallbackId?: string): UserPublic => {
-    if (!user) return toUserPublicFallback(fallbackId);
-    return buildUserPublic(user, currentUser?.id, user.attendanceHistory);
-  };
-
   const participationSnapshot = useMemo(() => {
     const map = new Map<
       string,
@@ -104,19 +96,32 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
   }, [participationRecords]);
 
   const activityViews: ActivityView[] = useMemo(() => {
+    const resolvedUsersMap = isUsingMockActivities
+      ? new Map<string, UserRecord>([
+          ...mockUsers.map((user) => [user.id, user] as const),
+          ...usersMap,
+        ])
+      : usersMap;
+
+    const toPublicUser = (userId: string): UserPublic => {
+      const user = resolvedUsersMap.get(userId);
+      return user
+        ? getUserPublic(userId, {
+            viewerId: currentUser?.id,
+            attendanceHistory: user.attendanceHistory,
+          }) ?? toUserPublicFallback(userId)
+        : toUserPublicFallback(userId);
+    };
+
     return activityRecords.map((record) => {
       const category = categories.find((cat) => cat.id === record.categoryId) ?? categories[0];
       const subcategory = category?.subcategories.find((sub) => sub.id === record.subcategoryId);
-      const organizer = getUserPublic(userMap.get(record.organizerId), record.organizerId);
+      const organizer = toPublicUser(record.organizerId);
       const snapshot = participationSnapshot.get(record.id);
       const participantIds = new Set(snapshot?.participantIds ?? []);
       participantIds.add(record.organizerId);
-      const currentParticipants = Array.from(participantIds).map((id) =>
-        getUserPublic(userMap.get(id), id)
-      );
-      const pendingRequests = Array.from(snapshot?.pendingIds ?? []).map((id) =>
-        getUserPublic(userMap.get(id), id)
-      );
+      const currentParticipants = Array.from(participantIds).map((id) => toPublicUser(id));
+      const pendingRequests = Array.from(snapshot?.pendingIds ?? []).map((id) => toPublicUser(id));
       const attendedUsers = Array.from(snapshot?.attendedIds ?? []);
 
       return {
@@ -134,7 +139,14 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
     // - list screen: activities + category/subcategory id only
     // - detail screen: participants and organizer profiles by ids
     // - ratings: fetched separately by activity id
-  }, [activityRecords, userMap, currentUser?.id, participationSnapshot]);
+  }, [
+    activityRecords,
+    currentUser?.id,
+    getUserPublic,
+    isUsingMockActivities,
+    participationSnapshot,
+    usersMap,
+  ]);
 
   const userActivitiesQuery = useQuery({
     queryKey: ['userActivities', currentUser?.id],
@@ -167,6 +179,14 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
     const created = newActivities.map((payload) => buildActivity(payload, currentUser.id));
     const updatedActivities = [...created, ...activityRecords];
     saveActivitiesMutation.mutate(updatedActivities);
+    created.forEach((activity) => {
+      void appendEvent({
+        userId: currentUser.id,
+        activityId: activity.id,
+        type: 'created',
+        timestamp: activity.createdAt,
+      });
+    });
     return created;
   };
 
@@ -197,19 +217,15 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
   const cancelActivity = (activityId: string) => {
     const record = activityRecords.find((activity) => activity.id === activityId);
     if (!record) return;
-    const snapshot = participationSnapshot.get(activityId);
-    const participantIds = new Set(snapshot?.participantIds ?? []);
-    participantIds.add(record.organizerId);
-    const hasOtherParticipants = Array.from(participantIds).some(
-      (participantId) => participantId !== record.organizerId
-    );
-
-    if (!hasOtherParticipants) {
-      deleteActivity(activityId);
-      return;
-    }
 
     updateActivity(activityId, { status: 'cancelled' });
+    if (currentUser && currentUser.id === record.organizerId) {
+      void appendEvent({
+        userId: currentUser.id,
+        activityId,
+        type: 'cancelled',
+      });
+    }
   };
 
   const toggleSaveActivity = (activityId: string) => {

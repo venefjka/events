@@ -267,7 +267,7 @@ export default function ExploreScreen() {
                     />
                 </View>
 
-                <ScrollView style={styles.cardsScroll}>
+                <ScrollView style={styles.cardsScroll} showsVerticalScrollIndicator={false}>
                     {displayActivities.length > 0 ? (
                         <FlatList
                             data={displayActivities}

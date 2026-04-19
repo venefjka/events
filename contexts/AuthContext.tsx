@@ -288,6 +288,7 @@ export const [AuthProvider, useAuth] = createContextHook(() => {
     | 'avatar'
     | 'email'
     | 'password'
+    | 'rating'
     | 'birthDate'
     | 'gender'
     | 'cityPlace'

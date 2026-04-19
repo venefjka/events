@@ -24,3 +24,7 @@ export interface FilterState {
   timeTo: string;
   timeZoneRange: [number, number];
 }
+
+export interface UserActivityFeedState {
+  activeCategory: 'all' | 'organizer' | 'participant' | 'ratings';
+}

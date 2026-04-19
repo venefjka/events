@@ -504,7 +504,7 @@ const createStyles = (theme: Theme) =>
     },
     contentContainer: {
       paddingHorizontal: theme.spacing.screenPaddingHorizontal,
-      gap: theme.spacing.lg,
+      gap: theme.spacing.xxl,
       marginTop: -theme.spacing.md,
     },
     detailList: {

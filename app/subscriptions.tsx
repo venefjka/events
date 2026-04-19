@@ -1,142 +1,194 @@
 import React, { useMemo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-} from 'react-native';
-import { router, Stack } from 'expo-router';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Stack, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft, Star, Pin } from 'lucide-react-native';
-import { useSubscriptions } from '@/contexts/SubscriptionsContext';
-import { useActivities } from '@/contexts/ActivitiesContext';
-import { Activity, Subscription } from '../types';
+import { Pin, Users } from 'lucide-react-native';
 import { Avatar } from '@/components/ui/Avatar';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Header } from '@/components/ui/Header';
+import { Rating } from '@/components/ui/Rating';
+import { useSubscriptions } from '@/contexts/SubscriptionsContext';
+import { useUsers } from '@/contexts/UsersContext';
+import { createCommonStyles } from '@/styles/common';
+import { useTheme } from '@/themes/useTheme';
+import { Subscription, UserPublic } from '@/types';
 
-// todo: перерисовать + refactor
+type SubscriptionListItem = Subscription & {
+  user: UserPublic;
+};
+
+const getSubscriptionLabel = (count: number) => {
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return 'подписок';
+  }
+
+  if (lastDigit === 1) {
+    return 'подписка';
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return 'подписки';
+  }
+
+  return 'подписок';
+};
 
 export default function SubscriptionsScreen() {
-  const { subscriptions, togglePin, isPinned } = useSubscriptions();
-  const { allActivities } = useActivities();
+  const { subscriptions, togglePin, isLoading } = useSubscriptions();
+  const { getUserPublic } = useUsers();
+  const theme = useTheme();
+  const commonStyles = createCommonStyles(theme);
 
-  const allUsers = useMemo(() => {
-    const usersMap = new Map();
-    allActivities.forEach((activity: Activity) => {
-      if (!usersMap.has(activity.organizer.id)) {
-        usersMap.set(activity.organizer.id, activity.organizer);
-      }
-      activity.currentParticipants.forEach((participant) => {
-        if (!usersMap.has(participant.id)) {
-          usersMap.set(participant.id, participant);
-        }
-      });
-    });
-    return Array.from(usersMap.values());
-  }, [allActivities]);
-
-  const subscribedUsers = useMemo(() => {
+  const sortedUsers = useMemo<SubscriptionListItem[]>(() => {
     return subscriptions
-      .map((sub) => {
-        const user = allUsers.find((u) => u.id === sub.userId);
-        return user ? { ...sub, user } : null;
-      })
-      .filter((item) => item !== null);
-  }, [subscriptions, allUsers]);
+      .reduce<SubscriptionListItem[]>((items, subscription) => {
+        const user = getUserPublic(subscription.userId);
 
-  const sortedUsers = useMemo(() => {
-    const pinned = subscribedUsers
-      .filter((item) => item.isPinned)
-      .sort((a, b) => a.user.name.localeCompare(b.user.name));
-    
-    const unpinned = subscribedUsers
-      .filter((item) => !item.isPinned)
-      .sort((a, b) => a.user.name.localeCompare(b.user.name));
-    
-    return [...pinned, ...unpinned];
-  }, [subscribedUsers]);
+        if (!user) {
+          return items;
+        }
 
-  const pinnedCount = subscribedUsers.filter((item) => item.isPinned).length;
+        items.push({ ...subscription, user });
+        return items;
+      }, [])
+      .sort((left, right) => {
+        if (left.isPinned !== right.isPinned) {
+          return left.isPinned ? -1 : 1;
+        }
+
+        return left.user.name.localeCompare(right.user.name, 'ru');
+      });
+  }, [getUserPublic, subscriptions]);
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
-      />
-      <SafeAreaView style={styles.container} edges={['top']}>
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-            <ArrowLeft size={24} color="#000" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Мои подписки</Text>
-          <View style={styles.placeholder} />
-        </View>
+      <Stack.Screen options={{ headerShown: false }} />
 
-        <ScrollView style={styles.content}>
-          {sortedUsers.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyStateIcon}>👥</Text>
-              <Text style={styles.emptyStateText}>Нет подписок</Text>
-              <Text style={styles.emptyStateSubtext}>
-                Подписывайтесь на пользователей, чтобы следить за их активностями
+      <SafeAreaView style={[commonStyles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
+        <Header title="Подписки" showBackButton borderBottom={false} />
+
+        {isLoading ? (
+          <View style={commonStyles.loadingContainer}>
+            <ActivityIndicator size="large" color={theme.colors.primary} />
+          </View>
+        ) : (
+          <View style={styles.container}>
+            <View
+              style={[
+                styles.infoCard,
+                {
+                  backgroundColor: theme.colors.background,
+                  borderBottomColor: theme.colors.border,
+                  paddingHorizontal: theme.spacing.screenPaddingHorizontal,
+                  paddingBottom: theme.spacing.lg,
+                },
+              ]}
+            >
+              <Text
+                style={{
+                  ...theme.typography.bodyBold,
+                  color: theme.colors.text,
+                  marginBottom: theme.spacing.xs,
+                }}
+              >
+                {sortedUsers.length} {getSubscriptionLabel(sortedUsers.length)}
+              </Text>
+              <Text
+                style={{
+                  ...theme.typography.caption,
+                  color: theme.colors.textSecondary,
+                }}
+              >
+                Можно закрепить до 5 человек
               </Text>
             </View>
-          ) : (
-            <>
-              <View style={styles.info}>
-                <Text style={styles.infoText}>
-                  {subscribedUsers.length} {subscribedUsers.length === 1 ? 'подписка' : 'подписок'}
-                  {pinnedCount > 0 && ` • ${pinnedCount} закреплено`}
-                </Text>
-                <Text style={styles.infoSubtext}>
-                  Можно закрепить до 5 подписок
-                </Text>
-              </View>
 
-              {sortedUsers.map((item) => (
-                <TouchableOpacity
-                  key={item.user.id}
-                  style={styles.userCard}
-                  onPress={() => router.push(`/user/${item.user.id}`)}
+            <ScrollView
+              style={[commonStyles.content, { backgroundColor: theme.colors.background }]}
+              contentContainerStyle={styles.contentContainer}
+              showsVerticalScrollIndicator={false}
+            >
+              {sortedUsers.length === 0 ? (
+                <EmptyState
+                  icon={<Users size={theme.spacing.iconSizeXXLarge} />}
+                  title="Нет подписок"
+                  description="Подписывайтесь на пользователей, чтобы следить за их активностью"
+                />
+              ) : (
+                <View
+                  style={{
+                    paddingHorizontal: theme.spacing.screenPaddingHorizontal,
+                    paddingBottom: theme.spacing.xl,
+                  }}
                 >
-                  <View style={styles.userLeft}>
-                    <Avatar name={item.user.name} size="small" imageUrl={item.user.avatar} />
-                    <View style={styles.userInfo}>
-                      <View style={styles.nameRow}>
-                        <Text style={styles.userName}>{item.user.name}</Text>
-                        {item.isPinned && (
-                          <Pin size={14} color="#000" fill="#000" />
-                        )}
-                      </View>
-                      {typeof item.user.age === 'number' && (
-                        <Text style={styles.userAge}>{item.user.age} ???</Text>
-                      )}
-                      <View style={styles.rating}>
-                        <Star size={12} color="#000" fill="#000" />
-                        <Text style={styles.ratingText}>{(item.user.rating ?? 0).toFixed(1)}</Text>
-                      </View>
+                  {sortedUsers.map((item, index) => (
+                    <View
+                      key={item.user.id}
+                      style={[
+                        styles.userRow,
+                        {
+                          borderBottomColor: theme.colors.borderLight,
+                          borderBottomWidth: index === sortedUsers.length - 1 ? 0 : theme.spacing.borderWidth,
+                          paddingVertical: theme.spacing.lg,
+                        },
+                      ]}
+                    >
+                      <TouchableOpacity
+                        style={styles.userMain}
+                        activeOpacity={0.8}
+                        onPress={() => router.push(`/user/${item.user.id}`)}
+                      >
+                        <Avatar name={item.user.name} size="medium" imageUrl={item.user.avatar} />
+
+                        <View style={[styles.userInfo, { marginLeft: theme.spacing.md }]}>
+                          <View style={styles.nameRow}>
+                            <Text
+                              style={{
+                                ...theme.typography.bodyBold,
+                                color: theme.colors.text,
+                              }}
+                            >
+                              {item.user.name}
+                            </Text>
+                          </View>
+
+                          <Rating
+                            rating={item.user.rating ?? 0}
+                            size={theme.spacing.iconSizeXSmall}
+                            variant="compact"
+                            style={{ marginTop: theme.spacing.xs }}
+                          />
+                        </View>
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.pinButton,
+                          {
+                            width: theme.spacing.iconButtonHeight,
+                            height: theme.spacing.iconButtonHeight,
+                            borderRadius: theme.spacing.radiusRound,
+                            backgroundColor: item.isPinned ? theme.colors.text : theme.colors.surfaceVariant,
+                          },
+                        ]}
+                        onPress={() => togglePin(item.user.id)}
+                      >
+                        <Pin
+                          size={theme.spacing.iconSizeSmall}
+                          color={item.isPinned ? theme.colors.textInverse : theme.colors.textSecondary}
+                          fill={item.isPinned ? theme.colors.textInverse : 'none'}
+                        />
+                      </TouchableOpacity>
                     </View>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.pinButton, item.isPinned && styles.pinButtonActive]}
-                    onPress={(e) => {
-                      e.stopPropagation();
-                      togglePin(item.user.id);
-                    }}
-                  >
-                    <Pin
-                      size={18}
-                      color={item.isPinned ? '#fff' : '#666'}
-                      fill={item.isPinned ? '#fff' : 'none'}
-                    />
-                  </TouchableOpacity>
-                </TouchableOpacity>
-              ))}
-            </>
-          )}
-        </ScrollView>
+                  ))}
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        )}
       </SafeAreaView>
     </>
   );
@@ -145,89 +197,23 @@ export default function SubscriptionsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff',
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+  contentContainer: {
+    flexGrow: 1,
+  },
+  infoCard: {
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
   },
-  backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-  },
-  placeholder: {
-    width: 40,
-  },
-  content: {
-    flex: 1,
-  },
-  info: {
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e5e5',
-  },
-  infoText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  infoSubtext: {
-    fontSize: 13,
-    color: '#666',
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 80,
-    paddingHorizontal: 40,
-  },
-  emptyStateIcon: {
-    fontSize: 64,
-    marginBottom: 16,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  userCard: {
+  userRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f5f5f5',
   },
-  userLeft: {
+  userMain: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-    gap: 12,
   },
-
   userInfo: {
     flex: 1,
   },
@@ -235,37 +221,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 4,
-  },
-  userName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-  },
-  userAge: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
-  },
-  rating: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ratingText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#000',
   },
   pinButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#f5f5f5',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  pinButtonActive: {
-    backgroundColor: '#000',
+    marginLeft: 12,
   },
 });

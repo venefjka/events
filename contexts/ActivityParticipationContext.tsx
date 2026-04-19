@@ -6,6 +6,7 @@ import { ActivityParticipation, ParticipationStatus } from '@/types';
 import { useActivities } from '@/contexts/ActivitiesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
+import { useUserActivityFeed } from '@/contexts/UserActivityFeedContext';
 import { normalizeParticipationList } from '@/utils/participation';
 
 export const [ActivityParticipationProvider, useActivityParticipation] = createContextHook(() => {
@@ -13,6 +14,7 @@ export const [ActivityParticipationProvider, useActivityParticipation] = createC
   const { activityRecords, allActivities } = useActivities();
   const notificationsContext = typeof useNotifications === 'function' ? useNotifications() : null;
   const queryClient = useQueryClient();
+  const { appendEvent } = useUserActivityFeed();
 
   const participationQuery = useQuery<ActivityParticipation[]>({
     queryKey: ['activityParticipation'],
@@ -104,7 +106,7 @@ export const [ActivityParticipationProvider, useActivityParticipation] = createC
       existingIndex >= 0 ? participationRecords[existingIndex].status : null;
 
     if (previousStatus === status) {
-      return;
+      return false;
     }
 
     const updated =
@@ -129,32 +131,41 @@ export const [ActivityParticipationProvider, useActivityParticipation] = createC
 
     await saveParticipationMutation.mutateAsync(updated);
     applyAttendanceDelta(userId, previousStatus, status);
+    return true;
   };
 
   const removeParticipation = async (activityId: string, userId: string) => {
     const existing = participationRecords.find(
       (record) => record.activityId === activityId && record.userId === userId
     );
+    if (!existing) return false;
     const updated = participationRecords.filter(
       (record) => !(record.activityId === activityId && record.userId === userId)
     );
     await saveParticipationMutation.mutateAsync(updated);
     applyAttendanceDelta(userId, existing?.status ?? null, null);
+    return true;
   };
 
   const reconcileParticipationStatuses = async () => {
     const now = new Date();
     let changed = false;
+    const feedEventsToAppend: Array<{ userId: string; activityId: string; type: 'missed' }> = [];
     const updated = participationRecords.map((record) => {
-    const activity = activityRecords.find((a) => a.id === record.activityId);
-    if (!activity) return record;
-    if (activity.status === 'cancelled') return record;
+      const activity = activityRecords.find((a) => a.id === record.activityId);
+      if (!activity) return record;
+      if (activity.status === 'cancelled') return record;
       const endTime = new Date(activity.endAt ?? activity.startAt);
       if (Number.isNaN(endTime.getTime()) || endTime > now) return record;
 
       if (record.status === 'accepted') {
         changed = true;
         applyAttendanceDelta(record.userId, record.status, 'missed');
+        feedEventsToAppend.push({
+          userId: record.userId,
+          activityId: record.activityId,
+          type: 'missed',
+        });
         return { ...record, status: 'missed' as ParticipationStatus };
       }
       if (record.status === 'pending') {
@@ -166,6 +177,7 @@ export const [ActivityParticipationProvider, useActivityParticipation] = createC
 
     if (changed) {
       await saveParticipationMutation.mutateAsync(updated);
+      await Promise.all(feedEventsToAppend.map((event) => appendEvent(event)));
     }
   };
 
@@ -235,7 +247,14 @@ export const [ActivityParticipationProvider, useActivityParticipation] = createC
       return;
     }
 
-    await upsertParticipation(activityId, currentUser.id, 'accepted');
+    const changed = await upsertParticipation(activityId, currentUser.id, 'accepted');
+    if (changed) {
+      await appendEvent({
+        userId: currentUser.id,
+        activityId,
+        type: 'joined',
+      });
+    }
   };
 
   const approveJoinRequest = async (activityId: string, userId: string) => {
@@ -245,7 +264,14 @@ export const [ActivityParticipationProvider, useActivityParticipation] = createC
       console.log('Activity cancelled');
       return;
     }
-    await upsertParticipation(activityId, userId, 'accepted');
+    const changed = await upsertParticipation(activityId, userId, 'accepted');
+    if (changed) {
+      await appendEvent({
+        userId,
+        activityId,
+        type: 'joined',
+      });
+    }
 
     if (notificationsContext) {
       notificationsContext.addNotification({
@@ -286,18 +312,39 @@ export const [ActivityParticipationProvider, useActivityParticipation] = createC
     const hoursUntilEvent = (eventTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
     if (hoursUntilEvent > 2) {
-      await removeParticipation(activityId, currentUser.id);
+      const removed = await removeParticipation(activityId, currentUser.id);
+      if (removed) {
+        await appendEvent({
+          userId: currentUser.id,
+          activityId,
+          type: 'leaved',
+        });
+      }
       return;
     }
 
-    await upsertParticipation(activityId, currentUser.id, 'missed');
+    const changed = await upsertParticipation(activityId, currentUser.id, 'missed');
+    if (changed) {
+      await appendEvent({
+        userId: currentUser.id,
+        activityId,
+        type: 'missed',
+      });
+    }
   };
 
   const cancelJoinRequest = async (activityId: string) => {
     if (!currentUser) return;
     const activity = activityRecords.find((a) => a.id === activityId);
     if (!activity) return;
-    await removeParticipation(activityId, currentUser.id);
+    const removed = await removeParticipation(activityId, currentUser.id);
+    if (removed) {
+      await appendEvent({
+        userId: currentUser.id,
+        activityId,
+        type: 'leaved',
+      });
+    }
   };
 
   const markAttendance = async (activityId: string, userId: string) => {
@@ -324,7 +371,14 @@ export const [ActivityParticipationProvider, useActivityParticipation] = createC
       return;
     }
 
-    await upsertParticipation(activityId, userId, 'attended');
+    const changed = await upsertParticipation(activityId, userId, 'attended');
+    if (changed) {
+      await appendEvent({
+        userId,
+        activityId,
+        type: 'attended',
+      });
+    }
 
     if (notificationsContext) {
       notificationsContext.addNotification({

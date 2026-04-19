@@ -15,23 +15,22 @@ import {
     LogOut,
     Users,
     QrCode,
-    UserCheck,
     Lock,
     Bell,
     Palette,
     HelpCircle,
     ChevronRight,
+    AtSign,
 } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
 import { Avatar } from '@/components/ui/Avatar';
-import { Rating } from '@/components/ui/Rating';
 import { Card } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Header } from '@/components/ui/Header';
 import { useTheme } from '@/themes/useTheme';
 import { createCommonStyles } from '@/styles/common';
-import { getUserAge } from '@/utils/user';
+import { getAgeLabel, getUserAge } from '@/utils/user';
 
 export default function ProfileScreen() {
     const { currentUser, logout, updateUser } = useAuth();
@@ -54,7 +53,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
                 style={[styles.menuItem, {
                     paddingHorizontal: theme.spacing.screenPaddingHorizontal,
-                    paddingVertical: theme.spacing.lg,
+                    paddingVertical: theme.spacing.md,
                 }]}
                 onPress={item.onPress}
             >
@@ -90,20 +89,20 @@ export default function ProfileScreen() {
         {
             key: 'profile',
             label: 'Мой профиль',
-            icon: <Users />,
+            icon: <AtSign />,
             onPress: () => router.push(`/user/${currentUser!.id}`),
+        },
+        {
+            key: 'subscriptions',
+            label: 'Подписки',
+            icon: <Users />,
+            onPress: () => router.push('/subscriptions'),
         },
         {
             key: 'qr',
             label: 'QR',
             icon: <QrCode />,
             onPress: () => router.push('/qr?mode=participant'),
-        },
-        {
-            key: 'subscriptions',
-            label: 'Мои подписки',
-            icon: <UserCheck />,
-            onPress: () => router.push('/subscriptions'),
         },
     ];
 
@@ -200,11 +199,8 @@ export default function ProfileScreen() {
                         <Text style={[styles.age, {
                             ...theme.typography.body,
                             color: theme.colors.textSecondary,
-                            // marginBottom: theme.spacing.md,
-                        }]}>{userAge} года, {currentUser.cityPlace?.settlement}</Text>
+                        }]}>{userAge} {getAgeLabel(userAge)}, {currentUser.cityPlace?.settlement}</Text>
                     )}
-
-                    {/* <Rating rating={currentUser.rating} size={16} variant="compact" /> */}
                 </View>
 
                 <View style={[styles.section, {
@@ -356,7 +352,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
     },
     menuItemSeparator: {
-        height: StyleSheet.hairlineWidth,
+        height: 1,
     },
     menuItemText: {
         fontSize: 16,

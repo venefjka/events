@@ -10,6 +10,8 @@ import { ActivityParticipationProvider } from "@/contexts/ActivityParticipationC
 import { QrTokenProvider } from "@/contexts/QrTokenContext";
 import { NotificationsProvider } from "@/contexts/NotificationsContext";
 import { SubscriptionsProvider } from "@/contexts/SubscriptionsContext";
+import { UserActivityFeedProvider } from "@/contexts/UserActivityFeedContext";
+import { UsersProvider } from "@/contexts/UsersContext";
 import { ActivityFiltersProvider } from "@/contexts/ActivityFiltersContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
@@ -110,21 +112,25 @@ export default function RootLayout() {
             <GestureHandlerRootView style={{ flex: 1 }}>
                 <ThemeProvider>
                     <AuthProvider>
-                        <NotificationsProvider>
-                            <SubscriptionsProvider>
-                                <ActivityFiltersProvider>
-                                    <ActivitiesProvider>
-                                        <ActivityParticipationProvider>
-                                            <QrTokenProvider>
-                                                <ActivityRatingsProvider>
-                                                    <RootLayoutNav />
-                                                </ActivityRatingsProvider>
-                                            </QrTokenProvider>
-                                        </ActivityParticipationProvider>
-                                    </ActivitiesProvider>
-                                </ActivityFiltersProvider>
-                            </SubscriptionsProvider>
-                        </NotificationsProvider>
+                        <UsersProvider>
+                            <NotificationsProvider>
+                                <SubscriptionsProvider>
+                                    <UserActivityFeedProvider>
+                                        <ActivityFiltersProvider>
+                                            <ActivitiesProvider>
+                                                <ActivityParticipationProvider>
+                                                    <QrTokenProvider>
+                                                        <ActivityRatingsProvider>
+                                                            <RootLayoutNav />
+                                                        </ActivityRatingsProvider>
+                                                    </QrTokenProvider>
+                                                </ActivityParticipationProvider>
+                                            </ActivitiesProvider>
+                                        </ActivityFiltersProvider>
+                                    </UserActivityFeedProvider>
+                                </SubscriptionsProvider>
+                            </NotificationsProvider>
+                        </UsersProvider>
                     </AuthProvider>
                 </ThemeProvider>
             </GestureHandlerRootView>

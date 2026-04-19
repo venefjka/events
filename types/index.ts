@@ -207,6 +207,23 @@ export interface ActivityRating {
     timestamp: string;
 }
 
+export type UserActivityFeedEventType =
+    | 'created'
+    | 'attended'
+    | 'rated'
+    | 'cancelled'
+    | 'leaved'
+    | 'joined'
+    | 'missed';
+
+export interface UserActivityFeedEvent {
+    id: string;
+    userId: string;
+    activityId: string;
+    type: UserActivityFeedEventType;
+    timestamp: string;
+}
+
 export type ParticipationStatus = 'pending' | 'accepted' | 'attended' | 'rejected' | 'missed';
 
 export interface ActivityParticipation {

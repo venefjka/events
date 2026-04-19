@@ -10,6 +10,7 @@ import { useActivities } from '@/contexts/ActivitiesContext';
 import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQrTokens } from '@/contexts/QrTokenContext';
+import { useUsers } from '@/contexts/UsersContext';
 import { Button } from '@/components/ui/Button';
 import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
@@ -19,10 +20,11 @@ import { formatActivityDate } from '@/utils/date';
 
 export default function QRScanScreen() {
   const { activityId } = useLocalSearchParams<{ activityId?: string }>();
-  const { currentUser, localUsers } = useAuth();
+  const { currentUser } = useAuth();
   const { allActivities } = useActivities();
   const { markAttendance, getParticipationStatus } = useActivityParticipation();
   const { resolveToken } = useQrTokens();
+  const { users, getUserById } = useUsers();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [manualCode, setManualCode] = useState('');
@@ -83,7 +85,7 @@ export default function QRScanScreen() {
       const response = await qrApi.resolveToken({ token });
       return response.user.id;
     } catch {
-      const legacyUser = localUsers.find((user) => user.qrCode === token);
+      const legacyUser = users.find((user) => user.qrCode === token);
       return legacyUser?.id ?? null;
     }
   };
@@ -93,7 +95,7 @@ export default function QRScanScreen() {
 
     const token = extractQrToken(rawValue);
     const userId = await resolveScannedUserId(rawValue);
-    const participant = localUsers.find((user) => user.id === userId);
+    const participant = userId ? getUserById(userId) : null;
     const status = userId ? getParticipationStatus(activity.id, userId) : null;
 
     if (!userId) {

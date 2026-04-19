@@ -204,3 +204,23 @@ export interface ResolveQrTokenResponseDto {
   user: UserSnippetDto;
   expiresAt: IsoDateTimeString;
 }
+
+export type UserActivityFeedEventTypeDto =
+  | 'created'
+  | 'attended'
+  | 'rated'
+  | 'cancelled'
+  | 'leaved'
+  | 'joined'
+  | 'missed';
+
+export interface UserActivityFeedEventDto {
+  id: Id;
+  userId: Id;
+  activityId: Id;
+  type: UserActivityFeedEventTypeDto;
+  occurredAt: IsoDateTimeString;
+  createdAt: IsoDateTimeString;
+  actorUserId?: Id | null;
+  metadata?: Record<string, unknown>;
+}

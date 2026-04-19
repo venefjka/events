@@ -1,14 +1,18 @@
 import createContextHook from '@nkzw/create-context-hook';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { ActivityRating, UserRecord } from '@/types';
+import { ActivityRating, Review } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { useActivities } from '@/contexts/ActivitiesContext';
+import { useUserActivityFeed } from '@/contexts/UserActivityFeedContext';
+import { useUsers } from '@/contexts/UsersContext';
 
 export const [ActivityRatingsProvider, useActivityRatings] = createContextHook(() => {
-  const { currentUser } = useAuth();
+  const { currentUser, updateUser } = useAuth();
   const { allActivities } = useActivities();
   const queryClient = useQueryClient();
+  const { appendEvent } = useUserActivityFeed();
+  const { getUserById } = useUsers();
 
   const ratingsQuery = useQuery({
     queryKey: ['activityRatings'],
@@ -58,6 +62,12 @@ export const [ActivityRatingsProvider, useActivityRatings] = createContextHook((
 
     const updatedRatings = [...activityRatings, activityRating];
     await saveRatingsMutation.mutateAsync(updatedRatings);
+    await appendEvent({
+      userId: currentUser.id,
+      activityId,
+      type: 'rated',
+      timestamp: activityRating.timestamp,
+    });
 
     const organizerId = activity.organizerId;
     const organizerActivities = allActivities.filter((a) => a.organizerId === organizerId);
@@ -71,25 +81,8 @@ export const [ActivityRatingsProvider, useActivityRatings] = createContextHook((
       newRating = totalRating / organizerRatings.length;
     }
 
-    const usersJson = await AsyncStorage.getItem('localUsers');
-    const usersList: UserRecord[] = usersJson ? JSON.parse(usersJson) : [];
-    const updatedUsers = usersList.map((acc) => {
-      if (acc.id === organizerId) {
-        return {
-          ...acc,
-          rating: newRating,
-        };
-      }
-      return acc;
-    });
-
-    await AsyncStorage.setItem('localUsers', JSON.stringify(updatedUsers));
-
-    if (organizerId === currentUser.id) {
-      const updatedCurrentUser = updatedUsers.find((acc) => acc.id === currentUser.id);
-      if (updatedCurrentUser) {
-        await AsyncStorage.setItem('currentUser', JSON.stringify(updatedCurrentUser));
-      }
+    if (updateUser) {
+      await updateUser(organizerId, { rating: newRating });
     }
 
     await Promise.all([
@@ -110,9 +103,35 @@ export const [ActivityRatingsProvider, useActivityRatings] = createContextHook((
     return totalRating / userRatings.length;
   };
 
+  const getReviewsForOrganizer = (organizerId: string): Review[] => {
+    const organizerActivityIds = new Set(
+      allActivities
+        .filter((activity) => activity.organizerId === organizerId)
+        .map((activity) => activity.id)
+    );
+
+    return activityRatings
+      .filter((rating) => organizerActivityIds.has(rating.activityId))
+      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+      .map((rating) => {
+        const author = getUserById(rating.userId);
+
+        return {
+          id: rating.id,
+          fromUserId: rating.userId,
+          fromUserName: author?.name ?? 'Пользователь',
+          rating: rating.rating,
+          text: rating.comment ?? '',
+          date: rating.timestamp,
+          activityId: rating.activityId,
+        };
+      });
+  };
+
   return {
     activityRatings,
     getRatingsForActivity,
+    getReviewsForOrganizer,
     hasUserRated,
     rateActivity,
     getUserRating,

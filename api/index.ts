@@ -11,3 +11,4 @@ export * from './notifications';
 export * from './subscriptions';
 export * from './qr';
 export * from './files';
+export * from './userActivityFeed';

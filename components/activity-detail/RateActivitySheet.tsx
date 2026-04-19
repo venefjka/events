@@ -52,7 +52,7 @@ export function RateActivitySheet({ visible, activity, onClose }: RateActivitySh
   return (
     <BottomSheetModal
       visible={visible}
-      title="Оценить мероприятие"
+      title="Оценить организатора"
       onClose={onClose}
       minHeightRatio={0.7}
       footer={

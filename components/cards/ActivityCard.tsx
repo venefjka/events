@@ -24,12 +24,14 @@ import { formatActivityDate, formatDateOnly, formatTimeOnly, formatTimeZoneOffse
 import { router } from 'expo-router';
 
 type Mode = 'map' | 'list';
+type Variant = 'default' | 'compact';
 
 interface ActivityCardProps {
     activity: Activity;
     onPress?: () => void;
     onClose?: () => void;
     mode?: Mode;
+    variant?: Variant;
     showCTA?: boolean;
     absolute?: boolean;
     style?: StyleProp<ViewStyle>;
@@ -43,12 +45,14 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
     onPress,
     onClose,
     mode = 'map',
+    variant = 'default',
     showCTA = mode === 'map',
     absolute = mode === 'map',
     style,
     photoUriOverride,
 }) => {
     const theme = useTheme();
+    const isCompact = variant === 'compact';
     const photoUri = photoUriOverride || activity.photoUrls?.[0];
     const [photoFailed, setPhotoFailed] = React.useState(false);
     const hasPhoto = Boolean(photoUri) && !photoFailed;
@@ -69,6 +73,20 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
             : endLabel
         : '';
     const timeZoneLabel = formatTimeZoneOffset(activity.startAt, timeZone);
+    const compactDateLabel = useMemo(() => {
+        const shortDate = (value: string) =>
+            new Date(value).toLocaleDateString('ru', {
+                day: 'numeric',
+                month: 'short',
+                timeZone,
+            });
+
+        const startDate = shortDate(activity.startAt);
+        if (!activity.endAt) return startDate;
+
+        const endDate = shortDate(activity.endAt);
+        return startDate === endDate ? startDate : `${startDate} - ${endDate}`;
+    }, [activity.endAt, activity.startAt, timeZone]);
 
     const maxParticipants = activity.preferences?.maxParticipants ?? 0;
     const participantsText = maxParticipants > 0
@@ -187,7 +205,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                 {hasPhoto ? (
                     <ImageBackground
                         source={{ uri: photoUri }}
-                        style={styles.photo}
+                        style={isCompact ? styles.photoCompact : styles.photo}
                         resizeMode="cover"
                         onError={() => setPhotoFailed(true)}
                     >
@@ -229,7 +247,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                         colors={[theme.colors.border, theme.colors.surface]}
                         start={{ x: 0, y: 0 }}
                         end={{ x: 1, y: 1 }}
-                        style={[styles.photo, styles.photoPlaceholder]}
+                        style={[isCompact ? styles.photoCompact : styles.photo, styles.photoPlaceholder]}
                     >
                         {/* top bar */}
                         <View style={styles.photoTopRow}>
@@ -269,7 +287,6 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
             {/* CONTENT */}
             <View style={{ padding: theme.spacing.md }}>
-                {/* title */}
                 <Text
                     numberOfLines={2}
                     style={{ ...theme.typography.bodyLargeBold, color: theme.colors.text }}
@@ -277,71 +294,91 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                     {activity.title}
                 </Text>
 
-                {/* badges */}
                 <View style={[styles.badgesRow, { marginTop: theme.spacing.sm }]}>
-                    {orderedBadges.map((badge, idx) => (
-                        <Chip
-                            key={`${badge.label}-${idx}`}
-                            label={badge.label}
-                            variant={badge.variant || 'default'}
-                            size="xs"
-                            selected={badge.variant === 'bw'}
-                            icon={badge.icon}
-                        />
-                    ))}
+                    {isCompact ? (
+                        <>
+                            <Chip
+                                label={activity.subcategory?.name ?? activity.category.name}
+                                variant="bw"
+                                size="xs"
+                                selected
+                                icon={renderCategoryIcon(activity.category, theme.spacing.iconSizeSmall - 2)}
+                            />
+                            <Text
+                                numberOfLines={1}
+                                style={[
+                                    styles.compactDateText,
+                                    { color: theme.colors.textSecondary, ...theme.typography.captionSmall },
+                                ]}
+                            >
+                                {compactDateLabel}
+                            </Text>
+                        </>
+                    ) : (
+                        orderedBadges.map((badge, idx) => (
+                            <Chip
+                                key={`${badge.label}-${idx}`}
+                                label={badge.label}
+                                variant={badge.variant || 'default'}
+                                size="xs"
+                                selected={badge.variant === 'bw'}
+                                icon={badge.icon}
+                            />
+                        ))
+                    )}
                 </View>
 
-                {/* time */}
-                <View style={[styles.metaRow, { marginTop: theme.spacing.md }]}>
-                    <Clock size={16} color={theme.colors.textSecondary} />
-                    <Text
-                        numberOfLines={1}
-                        style={[styles.metaText, { ...theme.typography.caption, color: theme.colors.textSecondary }]}
-                    >
-                        {startLabel}
-                        {endLabelDisplay ? ` — ${endLabelDisplay}` : ''}
-                    </Text>
-                    {timeZoneLabel ? (
-                        <Text style={{ ...theme.typography.caption, color: theme.colors.textTertiary, paddingHorizontal: theme.spacing.sm }}>
-                            {timeZoneLabel}
-                        </Text>
-                    ) : null}
-                </View>
+                {!isCompact ? (
+                    <>
+                        <View style={[styles.metaRow, { marginTop: theme.spacing.md }]}>
+                            <Clock size={16} color={theme.colors.textSecondary} />
+                            <Text
+                                numberOfLines={1}
+                                style={[styles.metaText, { ...theme.typography.caption, color: theme.colors.textSecondary }]}
+                            >
+                                {startLabel}
+                                {endLabelDisplay ? ` — ${endLabelDisplay}` : ''}
+                            </Text>
+                            {timeZoneLabel ? (
+                                <Text style={{ ...theme.typography.caption, color: theme.colors.textTertiary, paddingHorizontal: theme.spacing.sm }}>
+                                    {timeZoneLabel}
+                                </Text>
+                            ) : null}
+                        </View>
 
-                {/* place */}
-                <View style={[styles.metaRow, {
-                    marginTop: theme.spacing.xs,
-                    width: "100%"
-                }]}>
-                    {activity.format === 'online'
-                        ? <Monitor size={16} color={theme.colors.textSecondary} />
-                        : <MapPin size={16} color={theme.colors.textSecondary} />
-                    }
-                    <Text
-                        numberOfLines={1}
-                        style={[
-                            styles.metaText,
-                            {
-                                ...theme.typography.caption,
-                                color: theme.colors.textSecondary,
-                            },
-                        ]}
-                    >
-                        {placeTitle}
-                    </Text>
+                        <View style={[styles.metaRow, {
+                            marginTop: theme.spacing.xs,
+                            width: "100%"
+                        }]}>
+                            {activity.format === 'online'
+                                ? <Monitor size={16} color={theme.colors.textSecondary} />
+                                : <MapPin size={16} color={theme.colors.textSecondary} />
+                            }
+                            <Text
+                                numberOfLines={1}
+                                style={[
+                                    styles.metaText,
+                                    {
+                                        ...theme.typography.caption,
+                                        color: theme.colors.textSecondary,
+                                    },
+                                ]}
+                            >
+                                {placeTitle}
+                            </Text>
 
-                    {/* participants */}
-                    <Chip
-                        label={participantsText}
-                        variant="bw"
-                        size="xs"
-                        icon={<Users size={16} color={theme.colors.textSecondary} />}
-                        style={styles.participantsChip}
-                    />
-                </View>
+                            <Chip
+                                label={participantsText}
+                                variant="bw"
+                                size="xs"
+                                icon={<Users size={16} color={theme.colors.textSecondary} />}
+                                style={styles.participantsChip}
+                            />
+                        </View>
+                    </>
+                ) : null}
 
-                {/* CTA */}
-                {showCTA ? (
+                {!isCompact && showCTA ? (
                     <View style={{ marginTop: theme.spacing.md }}>
                         <Button
                             title="Подробнее"
@@ -383,6 +420,7 @@ const styles = StyleSheet.create({
 
     photoWrap: { overflow: 'hidden' },
     photo: { height: 80, width: '100%', justifyContent: 'space-between' },
+    photoCompact: { height: 56, width: '100%', justifyContent: 'space-between' },
     photoPlaceholder: {
         backgroundColor: 'rgba(0,0,0,0.08)',
     },
@@ -425,6 +463,10 @@ const styles = StyleSheet.create({
     metaText: { flex: 1 },
 
     badgesRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    compactDateText: {
+        marginLeft: 'auto',
+        alignSelf: 'center',
+    },
 
     participantsChip: { borderWidth: 0 },
 
@@ -454,4 +496,3 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
 });
-

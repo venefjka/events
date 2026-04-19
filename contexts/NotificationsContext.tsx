@@ -11,27 +11,6 @@ export const [NotificationsProvider, useNotifications] = createContextHook(() =>
     const now = Date.now();
     return [
       {
-        id: `seed-${userId}-request`,
-        userId,
-        type: 'request',
-        title: 'Заявка на участие',
-        message: 'Пользователь хочет присоединиться к вашей активности.',
-        timestamp: new Date(now - 1000 * 60 * 30).toISOString(),
-        read: false,
-        activityId: 'a-1',
-        actionRequired: true,
-        requestUserId: 'u-2',
-      },
-      {
-        id: `seed-${userId}-reminder`,
-        userId,
-        type: 'reminder',
-        title: 'Напоминание',
-        message: 'Через 2 часа начинается мероприятие.',
-        timestamp: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
-        read: false,
-      },
-      {
         id: `seed-${userId}-welcome`,
         userId,
         type: 'system',

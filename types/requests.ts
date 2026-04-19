@@ -8,6 +8,7 @@
   IsoDateTimeString,
   SubcategoryId,
 } from './primitives';
+import type { UserActivityFeedEventTypeDto } from './dto';
 import { ActivityPreferencesDto, CityDto, LocationDto, UserPrivacySettings } from './shared';
 
 export interface LoginRequest {
@@ -129,4 +130,13 @@ export interface UploadFileRequest {
   name: string;
   mimeType: string;
   uri: string;
+}
+
+export interface CreateUserActivityFeedEventRequest {
+  userId: Id;
+  activityId: Id;
+  type: UserActivityFeedEventTypeDto;
+  occurredAt?: IsoDateTimeString;
+  actorUserId?: Id | null;
+  metadata?: Record<string, unknown>;
 }

@@ -87,3 +87,12 @@ export interface SubscriptionsQuery {
   pinnedOnly?: boolean;
   sort?: 'subscribedAt' | 'name';
 }
+
+export type UserActivityFeedCategoryQuery = 'all' | 'organizer' | 'participant' | 'ratings';
+
+export interface UserActivityFeedQuery {
+  limit?: number;
+  cursor?: string;
+  category?: Exclude<UserActivityFeedCategoryQuery, 'all'>;
+  includeHiddenParticipation?: boolean;
+}

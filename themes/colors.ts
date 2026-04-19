@@ -25,6 +25,11 @@ export const lightColors = {
   success: '#34C759',
   warning: '#FF9500',
   info: '#007AFF',
+  ratingPoor: '#D96B5F',
+  ratingFair: '#E39A53',
+  ratingGood: '#E7C65A',
+  ratingVeryGood: '#A9C95F',
+  ratingExcellent: '#5E9D74',
   
   // Акценты
   accent: '#000000',
@@ -74,6 +79,11 @@ export const darkColors = {
   success: '#32D74B',
   warning: '#FF9F0A',
   info: '#0A84FF',
+  ratingPoor: '#D96B5F',
+  ratingFair: '#E39A53',
+  ratingGood: '#E7C65A',
+  ratingVeryGood: '#A9C95F',
+  ratingExcellent: '#5E9D74',
   
   // Акценты
   accent: '#FFFFFF',

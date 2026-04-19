@@ -1,40 +1,92 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useLocalSearchParams, router } from 'expo-router';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { ArrowLeft } from 'lucide-react-native';
-import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/contexts/AuthContext';
+import { useLocalSearchParams } from 'expo-router';
+import { Asterisk, CalendarPlus2, CircleUserRound, Star } from 'lucide-react-native';
+import { Header } from '@/components/ui/Header';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { ExpandableTabBar } from '@/components/ui/ExpandableTabs';
+import { UserActivityFeedList } from '@/components/user-activity/UserActivityFeedList';
 import { useActivities } from '@/contexts/ActivitiesContext';
 import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
+import { useActivityRatings } from '@/contexts/ActivityRatingsContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useUserActivityFeed } from '@/contexts/UserActivityFeedContext';
+import { useUsers } from '@/contexts/UsersContext';
+import { createCommonStyles } from '@/styles/common';
 import { UserPublic, UserRecord } from '@/types';
+import {
+  buildUserActivityFeedItems,
+  getUserActivityFeedCategory,
+  type UserActivityFeedCategory,
+} from '@/utils/userActivityFeed';
 import { buildUserPublic } from '@/utils/user';
+import type { Theme } from '@/themes/theme';
 import { useTheme } from '@/themes/useTheme';
-import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
-
-type HistoryTab = 'created' | 'attended' | 'upcoming';
-
-// todo: сделать с нуля
 
 export default function UserHistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { currentUser, localUsers } = useAuth();
-  const { allActivities } = useActivities();
-  const { getUserActivityIdsByStatus, participationUpdatedAt } = useActivityParticipation();
-  const theme = useTheme();
-  const [activeTab, setActiveTab] = useState<HistoryTab>('created');
-
   const userId = typeof id === 'string' ? id : '';
-  const userRecord = localUsers.find((user) => user.id === userId);
-  const fallbackUser = allActivities
-    .flatMap((activity) => [activity.organizer, ...activity.currentParticipants])
-    .find((user) => user.id === userId);
+  const { currentUser } = useAuth();
+  const { getUserById } = useUsers();
+  const { allActivities } = useActivities();
+  const { getUserParticipationRecords, participationUpdatedAt } = useActivityParticipation();
+  const { activityRatings } = useActivityRatings();
+  const { feedEvents, isLoading } = useUserActivityFeed();
+  const theme = useTheme();
+  const styles = useMemo(() => createStyles(theme), [theme]);
+  const commonStyles = useMemo(() => createCommonStyles(theme), [theme]);
+  const [activeFilter, setActiveFilter] = useState<UserActivityFeedCategory>('all');
 
-  const baseUser = userRecord ?? fallbackUser ?? null;
+  const filterOptions = useMemo(
+    () => [
+      {
+        id: 'all' as UserActivityFeedCategory,
+        label: 'Вся',
+        renderIcon: ({ size, color }: { size: number; color: string }) => (
+          <Asterisk size={size * 1.2} color={color} />
+        ),
+      },
+      {
+        id: 'organizer' as UserActivityFeedCategory,
+        label: 'Организатор',
+        renderIcon: ({ size, color }: { size: number; color: string }) => (
+          <CalendarPlus2 size={size} color={color} />
+        ),
+      },
+      {
+        id: 'participant' as UserActivityFeedCategory,
+        label: 'Участник',
+        renderIcon: ({ size, color }: { size: number; color: string }) => (
+          <CircleUserRound size={size} color={color} />
+        ),
+      },
+      {
+        id: 'ratings' as UserActivityFeedCategory,
+        label: 'Оценки',
+        renderIcon: ({ size, color }: { size: number; color: string }) => (
+          <Star size={size} color={color} />
+        ),
+      },
+    ],
+    []
+  );
+
+  const userRecord = getUserById(userId);
+  const baseUser = userRecord ?? null;
 
   if (!baseUser || !currentUser) {
-    router.back();
-    return null;
+    return (
+      <SafeAreaView style={commonStyles.container} edges={['top', 'bottom']}>
+        <Header showBackButton title="История активности" borderBottom={false} />
+        <View style={commonStyles.emptyContainer}>
+          <EmptyState
+            title="Пользователь не найден"
+            description="Не удалось открыть историю для этого профиля."
+          />
+        </View>
+      </SafeAreaView>
+    );
   }
 
   const isOwnProfile = baseUser.id === currentUser.id;
@@ -44,271 +96,114 @@ export default function UserHistoryScreen() {
       ? buildUserPublic(userRecord, currentUser.id)
       : baseUser;
 
-  const canViewParticipationHistory =
-    isOwnProfile || (userRecord && userRecord.privacy?.showAttendanceHistory);
+  const canViewParticipationHistory = Boolean(
+    isOwnProfile || (userRecord && userRecord.privacy?.showAttendanceHistory)
+  );
 
-  const historyQuery = useQuery({
-    queryKey: ['userHistory', userId, activeTab, participationUpdatedAt, allActivities.length],
-    queryFn: async () => {
-      // TODO(backend): GET /users/:id/history?tab=created|attended|upcoming
-      const now = new Date();
+  const feedItems = useMemo(
+    () =>
+      buildUserActivityFeedItems({
+        userId,
+        canViewParticipationHistory,
+        events: feedEvents,
+        activities: allActivities,
+        participationRecords: getUserParticipationRecords(userId),
+        activityRatings,
+      }),
+    [
+      activityRatings,
+      allActivities,
+      canViewParticipationHistory,
+      displayUser.id,
+      feedEvents,
+      getUserParticipationRecords,
+      participationUpdatedAt,
+      userId,
+    ]
+  );
 
-      if (activeTab === 'created') {
-        return allActivities.filter((activity) => activity.organizer.id === displayUser.id);
-      }
+  const filteredFeed = useMemo(
+    () =>
+      feedItems.filter(
+        (item) => activeFilter === 'all' || getUserActivityFeedCategory(item.type) === activeFilter
+      ),
+    [activeFilter, feedItems]
+  );
 
-      if (!canViewParticipationHistory) {
-        return [];
-      }
-
-      if (activeTab === 'attended') {
-        const attendedIds = new Set(getUserActivityIdsByStatus(userId, ['attended']));
-        return allActivities.filter((activity) => {
-          if (!attendedIds.has(activity.id)) return false;
-          return new Date(activity.endAt || activity.startAt) < now;
-        });
-      }
-
-      const upcomingIds = new Set(getUserActivityIdsByStatus(userId, ['accepted', 'pending']));
-      return allActivities.filter((activity) => {
-        if (!upcomingIds.has(activity.id)) return false;
-        return new Date(activity.endAt || activity.startAt) >= now;
-      });
-    },
-    enabled: Boolean(userId) && (activeTab === 'created' || canViewParticipationHistory),
-  });
-
-  const activities = historyQuery.data ?? [];
-  const sortedActivities = useMemo(() => {
-    const sorted = [...activities];
-    sorted.sort((a, b) => {
-      const aDate = new Date(a.startAt).getTime();
-      const bDate = new Date(b.startAt).getTime();
-      if (activeTab === 'upcoming') return aDate - bDate;
-      return bDate - aDate;
-    });
-    return sorted;
-  }, [activities, activeTab]);
-
-  const isEmpty = sortedActivities.length === 0;
-
-  const emptyText =
-    activeTab === 'created'
-      ? 'Нет созданных мероприятий'
-      : activeTab === 'attended'
-        ? 'Нет посещенных мероприятий'
-        : 'Нет предстоящих мероприятий';
+  const isEmpty = filteredFeed.length === 0;
+  const emptyDescription =
+    canViewParticipationHistory || activeFilter === 'organizer' || activeFilter === 'all'
+      ? 'Пока нет событий для выбранного фильтра'
+      : 'История участника скрыта настройками конфиденциальности';
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
-          <ArrowLeft size={20} color="#000" />
-        </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.title}>
-            {'История активности'}
-          </Text>
-          <Text style={styles.subtitle}>{displayUser.name}</Text>
-        </View>
+    <SafeAreaView style={commonStyles.container} edges={['top']}>
+      <Header showBackButton title="История активности" borderBottom={false} />
+
+      <View style={styles.filtersWrap}>
+        <ExpandableTabBar
+          items={filterOptions.filter(
+            (option) => canViewParticipationHistory || option.id === 'all' || option.id === 'organizer'
+          )}
+          activeId={activeFilter}
+          onChange={setActiveFilter}
+          gap={theme.spacing.sm}
+          circleSize={44}
+          iconSize={18}
+          activePillWidth={0.55}
+          containerStyle={styles.filters}
+        />
       </View>
 
-      <View style={styles.tabs}>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'created' && styles.tabActive]}
-          onPress={() => setActiveTab('created')}
-        >
-          <Text style={[styles.tabText, activeTab === 'created' && styles.tabTextActive]}>
-            {'Созданные'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'attended' && styles.tabActive]}
-          onPress={() => setActiveTab('attended')}
-          disabled={!canViewParticipationHistory}
-        >
-          <Text style={[styles.tabText, activeTab === 'attended' && styles.tabTextActive]}>
-            {'Посещенные'}
-          </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.tab, activeTab === 'upcoming' && styles.tabActive]}
-          onPress={() => setActiveTab('upcoming')}
-          disabled={!canViewParticipationHistory}
-        >
-          <Text style={[styles.tabText, activeTab === 'upcoming' && styles.tabTextActive]}>
-            {'Предстоящие'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {!canViewParticipationHistory && activeTab !== 'created' && (
-        <View style={styles.lockedBanner}>
-          <Text style={styles.lockedText}>
-            {'История посещений закрыта настройками конфиденциальности'}
-          </Text>
-        </View>
-      )}
-
-      <ScrollView style={styles.content}>
-        {historyQuery.isLoading && (
+      <ScrollView
+        style={[commonStyles.content, { backgroundColor: theme.colors.surface }]}
+        contentContainerStyle={styles.content}
+        showsVerticalScrollIndicator={false}
+      >
+        {isLoading ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>
-              {'Загружаем историю...'}
+            <Text style={[styles.emptyText, { color: theme.colors.textSecondary, ...theme.typography.body }]}>
+              Загружаем историю...
             </Text>
           </View>
-        )}
-
-        {!historyQuery.isLoading && isEmpty && (
+        ) : isEmpty ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>{emptyText}</Text>
+            <EmptyState
+              title="Событий пока нет"
+              description={emptyDescription}
+            />
           </View>
+        ) : (
+          <UserActivityFeedList items={filteredFeed} style={{
+            backgroundColor: theme.colors.background,
+            paddingHorizontal: theme.spacing.screenPaddingHorizontal,
+            paddingTop: theme.spacing.md,
+            paddingBottom: theme.spacing.xs,
+            borderRadius: theme.spacing.radiusLarge,
+          }} />
         )}
-
-        {!historyQuery.isLoading &&
-          sortedActivities.map((activity) => (
-            <TouchableOpacity
-              key={activity.id}
-              style={styles.activityCard}
-              onPress={() => router.push(`/activity/${activity.id}`)}
-            >
-              <View style={styles.activityIcon}>
-                {renderCategoryIcon(activity.category, theme.spacing.iconSizeXLarge)}
-              </View>
-              <View style={styles.activityInfo}>
-                <Text style={styles.activityTitle}>{activity.title}</Text>
-                <Text style={styles.activityTime}>
-                  {new Date(activity.startAt).toLocaleString('ru', {
-                    day: 'numeric',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </Text>
-                <Text style={styles.activityLocation}>{activity.location.address}</Text>
-              </View>
-            </TouchableOpacity>
-          ))}
       </ScrollView>
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-    paddingTop: 8,
-  },
-  backButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f5f5f5',
-    marginRight: 12,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#000',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 2,
-  },
-  tabs: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginBottom: 12,
-    gap: 8,
-  },
-  tab: {
-    flex: 1,
-    paddingVertical: 8,
-    alignItems: 'center',
-    borderRadius: 6,
-    backgroundColor: '#f5f5f5',
-  },
-  tabActive: {
-    backgroundColor: '#000',
-  },
-  tabText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#666',
-  },
-  tabTextActive: {
-    color: '#fff',
-  },
-  lockedBanner: {
-    marginHorizontal: 20,
-    padding: 12,
-    borderRadius: 8,
-    backgroundColor: '#f5f5f5',
-    marginBottom: 8,
-  },
-  lockedText: {
-    fontSize: 13,
-    color: '#666',
-    lineHeight: 18,
-  },
-  content: {
-    flex: 1,
-    paddingHorizontal: 20,
-  },
-  emptyState: {
-    alignItems: 'center',
-    paddingVertical: 32,
-  },
-  emptyStateText: {
-    fontSize: 15,
-    color: '#999',
-  },
-  activityCard: {
-    flexDirection: 'row',
-    padding: 12,
-    borderRadius: 12,
-    backgroundColor: '#f9f9f9',
-    marginBottom: 8,
-  },
-  activityIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  activityInfo: {
-    flex: 1,
-    justifyContent: 'center',
-  },
-  activityTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#000',
-    marginBottom: 4,
-  },
-  activityTime: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 2,
-  },
-  activityLocation: {
-    fontSize: 13,
-    color: '#999',
-  },
-});
+const createStyles = (theme: Theme) =>
+  StyleSheet.create({
+    filtersWrap: {
+      paddingHorizontal: theme.spacing.screenPaddingHorizontal,
+      paddingBottom: theme.spacing.md,
+    },
+    filters: {
+      flexGrow: 0,
+    },
+    content: {
+      paddingBottom: theme.spacing.xxxl,
+      gap: theme.spacing.md,
+    },
+    emptyState: {
+      paddingTop: theme.spacing.xxl,
+    },
+    emptyText: {
+      textAlign: 'center',
+    },
+  });

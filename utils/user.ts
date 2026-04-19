@@ -16,6 +16,25 @@ export const getUserAge = (birthDate?: string): number | null => {
   return getAgeFromBirthDate(birthDate);
 };
 
+export const getAgeLabel = (count: number) => {
+  const lastTwoDigits = count % 100;
+  const lastDigit = count % 10;
+
+  if (lastTwoDigits >= 11 && lastTwoDigits <= 14) {
+    return 'лет';
+  }
+
+  if (lastDigit === 1) {
+    return 'год';
+  }
+
+  if (lastDigit >= 2 && lastDigit <= 4) {
+    return 'года';
+  }
+
+  return 'лет';
+};
+
 export const buildUserPublic = (
   user: UserRecord,
   viewerId?: string,
@@ -38,6 +57,5 @@ export const buildUserPublic = (
     attendanceHistory: canShow(privacy.showAttendanceHistory)
       ? attendanceHistory ?? user.attendanceHistory
       : undefined,
-    reviews: canShow(privacy.showReviews) ? user.reviews : undefined,
   };
 };
