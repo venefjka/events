@@ -1,6 +1,6 @@
 ﻿import React from 'react';
 import { Alert } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { MultiStepForm } from '@/components/forms/MultiStepForm';
 import { ActivityBasicsStep } from '@/components/steps/activity/ActivityBasicsStep';
 import { ActivityLocationStep } from '@/components/steps/activity/ActivityLocationStep';
@@ -11,6 +11,7 @@ import { ActivityPreviewStep } from '@/components/steps/activity/ActivityPreview
 import { useActivities } from '@/contexts/ActivitiesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { categories } from '@/constants/categories';
+import { buildCreateActivityDraftFromRecord } from '@/utils/activityUtils';
 import {
   getEndDateError,
   getEndTimeError,
@@ -24,14 +25,20 @@ import { buildDateTimeWithTimeZone } from '@/utils/date';
 import { getDefaultUtcOffsetOption, getDeviceTimeZone, getTimeZoneFromLocation } from '@/utils/timezone';
 
 export default function CreateActivityScreen() {
-  const { createActivity, createActivities } = useActivities();
+  const { sourceActivityId } = useLocalSearchParams<{ sourceActivityId?: string }>();
+  const { allActivities, createActivity, createActivities } = useActivities();
   const { currentUser } = useAuth();
 
   if (!currentUser) return null;
 
+  const resolvedSourceActivityId = Array.isArray(sourceActivityId) ? sourceActivityId[0] : sourceActivityId;
+  const sourceActivity = resolvedSourceActivityId
+    ? allActivities.find((activity) => activity.id === resolvedSourceActivityId)
+    : null;
+
   const defaultTimeZoneOption = getDefaultUtcOffsetOption();
 
-  const initialData = {
+  const baseInitialData = {
     categoryId: '',
     subcategoryId: '',
     title: '',
@@ -71,6 +78,13 @@ export default function CreateActivityScreen() {
     isFree: true,
     price: 0,
   };
+
+  const initialData = sourceActivity
+    ? {
+      ...baseInitialData,
+      ...buildCreateActivityDraftFromRecord(sourceActivity),
+    }
+    : baseInitialData;
 
   const buildNextDate = (date: Date, repeat: string) => {
     const next = new Date(date);
@@ -342,6 +356,7 @@ export default function CreateActivityScreen() {
 
   return (
     <MultiStepForm
+      key={sourceActivity?.id ?? 'new-activity'}
       steps={steps}
       onSubmit={handleSubmit}
       submitButtonText="Готово"

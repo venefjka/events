@@ -312,6 +312,10 @@ export const useFiltersFormController = ({
     setLocalFilters((prev) => ({ ...prev, onlyAvailable: value }));
   }, [setLocalFilters]);
 
+  const handleShowImportedWithoutOrganizerChange = useCallback((value: boolean) => {
+    setLocalFilters((prev) => ({ ...prev, showImportedWithoutOrganizer: value }));
+  }, [setLocalFilters]);
+
   const handleGenderChange = useCallback((value: typeof genderId) => {
     setLocalFilters((prev) => ({ ...prev, gender: value }));
   }, [setLocalFilters]);
@@ -384,6 +388,7 @@ export const useFiltersFormController = ({
     handleMaxParticipantsInput,
     clearMaxParticipants,
     handleOnlyAvailableChange,
+    handleShowImportedWithoutOrganizerChange,
     handleGenderChange,
     applyAgeRange,
     handleLevelChange,

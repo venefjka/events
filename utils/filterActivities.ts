@@ -7,6 +7,7 @@ import {
   parseDateInput,
   parseTimeParts,
 } from '@/utils/date';
+import { KUDAGO_ORGANIZER_ID } from './activityUtils';
 
 const MINUTES_IN_DAY = 1440;
 
@@ -115,6 +116,13 @@ export const filterActivities = (
   const filterToMinutes = timeTo ? timeTo.hours * 60 + timeTo.minutes : null;
 
   return activities.filter((activity) => {
+    const isImportedWithoutOrganizer =
+      activity.organizerId === KUDAGO_ORGANIZER_ID;
+
+    if (!filters.showImportedWithoutOrganizer && isImportedWithoutOrganizer) {
+      return false;
+    }
+
     if (filters.categoryId && activity.category.id !== filters.categoryId) {
       return false;
     }

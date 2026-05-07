@@ -22,6 +22,7 @@ import {
   toUserPublicFallback,
 } from '../utils/activityUtils';
 import { normalizeParticipationList } from '@/utils/participation';
+import { buildUserPublic } from '@/utils/user';
 
 export const [ActivitiesProvider, useActivities] = createContextHook(() => {
   const { currentUser } = useAuth();
@@ -106,10 +107,7 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
     const toPublicUser = (userId: string): UserPublic => {
       const user = resolvedUsersMap.get(userId);
       return user
-        ? getUserPublic(userId, {
-            viewerId: currentUser?.id,
-            attendanceHistory: user.attendanceHistory,
-          }) ?? toUserPublicFallback(userId)
+        ? buildUserPublic(user, currentUser?.id, user.attendanceHistory)
         : toUserPublicFallback(userId);
     };
 
@@ -119,7 +117,9 @@ export const [ActivitiesProvider, useActivities] = createContextHook(() => {
       const organizer = toPublicUser(record.organizerId);
       const snapshot = participationSnapshot.get(record.id);
       const participantIds = new Set(snapshot?.participantIds ?? []);
-      participantIds.add(record.organizerId);
+      if (record.organizerId) {
+        participantIds.add(record.organizerId);
+      }
       const currentParticipants = Array.from(participantIds).map((id) => toPublicUser(id));
       const pendingRequests = Array.from(snapshot?.pendingIds ?? []).map((id) => toPublicUser(id));
       const attendedUsers = Array.from(snapshot?.attendedIds ?? []);

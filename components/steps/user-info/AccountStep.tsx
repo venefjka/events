@@ -74,9 +74,6 @@ export const AccountStep: React.FC<AccountStepProps> = ({ data, updateData, mode
                                 }
                             }}
                         />
-                        <Text style={{ marginTop: 50 }}>
-                            todo : Предложить привязать аккаунт с соц сетей
-                        </Text>
                     </>
                 )}
             </View>

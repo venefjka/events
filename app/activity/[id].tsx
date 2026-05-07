@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import {
   Alert,
   ImageBackground,
+  Linking,
   Pressable,
   ScrollView,
   Share,
@@ -45,6 +46,7 @@ import { ParticipantsSheet } from '@/components/activity-detail/ParticipantsShee
 import { RateActivitySheet } from '@/components/activity-detail/RateActivitySheet';
 import { RequestsSheet } from '@/components/activity-detail/RequestsSheet';
 import type { HeroChip } from '@/components/activity-detail/ActivityDetailHero';
+import { KUDAGO_ORGANIZER_ID } from '@/utils/activityUtils';
 
 export default function ActivityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -69,6 +71,7 @@ export default function ActivityDetailScreen() {
   const commonStyles = useMemo(() => createCommonStyles(theme), [theme]);
 
   const activity = useMemo(() => allActivities.find((item) => item.id === activityId), [activityId, allActivities]);
+  const isKudagoActivity = Boolean(activity && (activity.organizer.id === KUDAGO_ORGANIZER_ID));
 
   const detailState = useMemo(
     () => (activity && currentUser ? getActivityDetailState(activity, currentUser.id, savedActivities) : null),
@@ -223,6 +226,20 @@ export default function ActivityDetailScreen() {
     ]);
   };
 
+  const handleBecomeOrganizer = () => {
+    if (!activity) return;
+    router.push(`/create-activity?sourceActivityId=${encodeURIComponent(activity.id)}`);
+  };
+
+  const handleOpenSource = async () => {
+    if (!activity?.siteUrl) return;
+
+    try {
+      await Linking.openURL(activity.siteUrl);
+    } catch (error) {
+    }
+  };
+
   const navigateToUser = (userId: string) => router.push(`/user/${userId}`);
 
   return (
@@ -262,7 +279,7 @@ export default function ActivityDetailScreen() {
 
       <ScrollView
         style={commonStyles.content}
-        contentContainerStyle={{ paddingBottom: theme.spacing.xxl * 2}}
+        contentContainerStyle={{ paddingBottom: theme.spacing.xxl * 2 }}
         showsVerticalScrollIndicator={false}
         bounces={false}
       >
@@ -280,8 +297,10 @@ export default function ActivityDetailScreen() {
             organizer={activity.organizer}
             participantPreview={detailState.participantPreview}
             participantsCountLabel={detailState.participantsCountLabel}
-            onOrganizerPress={() => navigateToUser(activity.organizer.id)}
+            onOrganizerPress={isKudagoActivity ? () => { } : () => navigateToUser(activity.organizer.id)}
             onParticipantsPress={() => setIsParticipantsSheetVisible(true)}
+            organizerActionLabel={isKudagoActivity ? 'Открыть на KudaGo' : undefined}
+            onOrganizerActionPress={isKudagoActivity ? handleOpenSource : undefined}
           />
 
           <View style={styles.sectionBlock}>
@@ -398,7 +417,15 @@ export default function ActivityDetailScreen() {
             </Text>
           }
 
-          {detailState.isOrganizer ? (
+          {isKudagoActivity ? (
+            <Button
+              title="Стать организатором"
+              variant="primary"
+              size="medium"
+              fullWidth
+              onPress={handleBecomeOrganizer}
+            />
+          ) : detailState.isOrganizer ? (
             <View style={styles.footerButtons}>
               <Button
                 title="QR-сканер"

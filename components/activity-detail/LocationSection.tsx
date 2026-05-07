@@ -59,8 +59,7 @@ export function LocationSection({ activity, onPress }: LocationSectionProps) {
               {activity.location.address}
             </Text>
             <Text style={{ color: theme.colors.textSecondary, ...theme.typography.caption }}>
-              {activity.location.name ||
-                [activity.location.settlement, activity.location.country].filter(Boolean).join(', ')}
+              {[activity.location.settlement, activity.location.country].filter(Boolean).join(', ')}
             </Text>
           </View>
         </View>

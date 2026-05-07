@@ -92,6 +92,7 @@ export interface ActivityRecord {
     id: string;
     title: string;
     description: string;
+    siteUrl?: string;
     categoryId: string;
     subcategoryId?: SubcategoryId;
     organizerId: string;
@@ -185,6 +186,7 @@ export interface FilterState {
     maxParticipants: number | null;
     registrationType: 'any' | 'yes' | 'no';
     onlyAvailable: boolean;
+    showImportedWithoutOrganizer: boolean;
     level: 'any' | 'beginner' | 'intermediate' | 'advanced';
     gender: 'any' | 'male' | 'female';
     format: 'online' | 'offline';

@@ -64,6 +64,7 @@ export interface FiltersFormController {
   handleMaxParticipantsInput: (text: string) => void;
   clearMaxParticipants: () => void;
   handleOnlyAvailableChange: (value: boolean) => void;
+  handleShowImportedWithoutOrganizerChange: (value: boolean) => void;
   handleGenderChange: (value: GenderOption) => void;
   applyAgeRange: (fromValue: string, toValue: string) => void;
   handleLevelChange: (value: LevelOption) => void;

@@ -15,6 +15,7 @@ export const createDefaultFilters = (
   maxParticipants: null,
   registrationType: 'any',
   onlyAvailable: false,
+  showImportedWithoutOrganizer: true,
   level: 'any',
   gender: 'any',
   format: 'offline',
@@ -168,6 +169,9 @@ export const getParticipationFilterSummary = (filters: FilterState) => {
   if (filters.onlyAvailable) {
     parts.push('есть места');
   }
+  if (!filters.showImportedWithoutOrganizer) {
+    parts.push('импорт скрыт');
+  }
 
   return parts.length ? parts.slice(0, 2).join(' · ') : 'Любые';
 };
@@ -211,7 +215,8 @@ export const isFilterSectionActive = (filters: FilterState, key: FilterSectionKe
         filters.priceTo != null ||
           filters.registrationType !== 'any' ||
           filters.maxParticipants != null ||
-          filters.onlyAvailable
+          filters.onlyAvailable ||
+          !filters.showImportedWithoutOrganizer
       );
     case 'preferences':
       return Boolean(
@@ -261,11 +266,12 @@ export const applySectionDefaults = (
       case 'participation':
           return {
               ...target,
-              priceTo: defaults.priceTo,
-              registrationType: defaults.registrationType,
-              maxParticipants: defaults.maxParticipants,
-              onlyAvailable: defaults.onlyAvailable,
-          };
+          priceTo: defaults.priceTo,
+          registrationType: defaults.registrationType,
+          maxParticipants: defaults.maxParticipants,
+          onlyAvailable: defaults.onlyAvailable,
+          showImportedWithoutOrganizer: defaults.showImportedWithoutOrganizer,
+      };
       case 'preferences':
           return {
               ...target,

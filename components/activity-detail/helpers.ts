@@ -113,7 +113,7 @@ export const getActivityDetailState = (
       label: 'Тип регистрации',
       value: approvalLabel ?? (activity.requiresApproval ? 'По заявке' : 'Свободная'),
     },
-    ...(levelLabel ? [{ label: 'Уровень', value: levelLabel }] : []),
+    ...(levelLabel ? [{ label: 'Уровень навыков', value: levelLabel }] : []),
     ...(ageLabel ? [{ label: 'Возраст', value: ageLabel }] : []),
     ...(genderLabel ? [{ label: 'Пол', value: genderLabel }] : []),
   ];
@@ -161,7 +161,7 @@ export const getActivityDetailState = (
     participantsCountLabel: isUnlimited
       ? `${activity.currentParticipants.length}/∞`
       : `${activity.currentParticipants.length}/${maxParticipants}`,
-    locationSummary: [activity.location.settlement, placeTitle, timeZoneLabel].filter(Boolean).join(', '),
+    locationSummary: [placeTitle, timeZoneLabel].filter(Boolean).join(', '),
     priceSummary: activity.price > 0 ? `от ${activity.price} ₽` : 'от 0 ₽',
     shareMessage: `${activity.title}\n${formatActivityDate(activity.startAt, activity.timeZone)}\n${
       activity.location.address

@@ -39,6 +39,9 @@ export const categories: ActivityCategory[] = [
             { id: 'design', name: 'Дизайн', hasLevel: true },
             { id: 'writing', name: 'Литература', hasLevel: true },
             { id: 'calligraphy', name: 'Каллиграфия', hasLevel: true },
+            { id: 'theater', name: 'Театр', hasLevel: false },
+            { id: 'exhibition', name: 'Выставки', hasLevel: false },
+            { id: 'dance', name: 'Танцы', hasLevel: true },
         ]
     },
     {
@@ -56,6 +59,7 @@ export const categories: ActivityCategory[] = [
             { id: 'psychology', name: 'Психология', hasLevel: true },
             { id: 'finance', name: 'Финансы', hasLevel: true },
             { id: 'business', name: 'Бизнес', hasLevel: true },
+            { id: 'public-speaking', name: 'Ораторское мастерство', hasLevel: true },
         ]
     },
     {
@@ -119,6 +123,7 @@ export const categories: ActivityCategory[] = [
             { id: 'gardening', name: 'Садоводство', hasLevel: true },
             { id: 'fishing', name: 'Рыбалка', hasLevel: true },
             { id: 'mushroom-picking', name: 'Грибы', hasLevel: true },
+            { id: 'excursion', name: 'Экскурсии', hasLevel: false },
         ]
     },
     {

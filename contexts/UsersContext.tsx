@@ -3,16 +3,20 @@ import { useMemo } from 'react';
 import { useAuth } from './AuthContext';
 import type { UserPublic, UserRecord } from '@/types';
 import { buildUserPublic } from '@/utils/user';
+import { mockUsers } from '@/mocks/activities';
 
 export const [UsersProvider, useUsers] = createContextHook(() => {
   const { currentUser, localUsers } = useAuth();
 
   const users = useMemo(() => {
-    const list = [...localUsers];
+    const list = [...mockUsers, ...localUsers];
     if (currentUser && !list.some((user) => user.id === currentUser.id)) {
       list.push(currentUser);
     }
-    return list;
+
+    return list.filter(
+      (user, index, array) => array.findIndex((candidate) => candidate.id === user.id) === index
+    );
   }, [currentUser, localUsers]);
 
   const usersMap = useMemo(

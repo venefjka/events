@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text, Switch } from 'react-native';
 import { categories } from '@/constants/categories';
 import { DropdownChipSelector } from '@/components/forms/DropdownChipSelector';
 import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
@@ -44,6 +44,18 @@ export function CategoryFilterSection({ controller }: FilterSectionProps) {
             />
           </View>
         ) : null}
+      </View>
+      
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={{ ...theme.typography.label, color: theme.colors.text}}>
+          Предлагать события для создания
+        </Text>
+        <Switch
+          value={controller.localFilters.showImportedWithoutOrganizer}
+          onValueChange={controller.handleShowImportedWithoutOrganizerChange}
+          trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
+          thumbColor={theme.colors.background}
+        />
       </View>
     </View>
   );

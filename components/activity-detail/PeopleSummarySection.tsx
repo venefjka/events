@@ -12,6 +12,8 @@ interface PeopleSummarySectionProps {
   participantsCountLabel: string;
   onOrganizerPress: () => void;
   onParticipantsPress: () => void;
+  organizerActionLabel?: string;
+  onOrganizerActionPress?: () => void;
 }
 
 export function PeopleSummarySection({
@@ -20,6 +22,8 @@ export function PeopleSummarySection({
   participantsCountLabel,
   onOrganizerPress,
   onParticipantsPress,
+  organizerActionLabel,
+  onOrganizerActionPress,
 }: PeopleSummarySectionProps) {
   const theme = useTheme();
   const styles = createStyles(theme);
@@ -33,7 +37,15 @@ export function PeopleSummarySection({
           <Text numberOfLines={1} style={{ color: theme.colors.text, ...theme.typography.bodyLargeBold }}>
             {organizer.name}
           </Text>
-          <Rating rating={organizer.rating} size={theme.spacing.iconSizeXSmall} variant="compact" />
+          {organizerActionLabel && onOrganizerActionPress ? (
+            <TouchableOpacity activeOpacity={0.85} onPress={onOrganizerActionPress} style={styles.organizerActionButton}>
+              <Text style={{ color: theme.colors.textTertiary, ...theme.typography.caption }}>
+                {organizerActionLabel}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <Rating rating={organizer.rating} size={theme.spacing.iconSizeXSmall} variant="compact" />
+          )}
         </View>
       </TouchableOpacity>
 
@@ -86,6 +98,10 @@ const createStyles = (theme: Theme) =>
       flex: 1,
       minWidth: 0,
       gap: theme.spacing.xs / 2,
+    },
+    organizerActionButton: {
+      alignSelf: 'flex-start',
+      paddingTop: theme.spacing.xs / 2,
     },
     participantsButton: {
       flexShrink: 0,

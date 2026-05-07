@@ -9,7 +9,7 @@ interface UseExploreAnimationsProps {
 
 export const useExploreAnimations = ({ headerHeight }: UseExploreAnimationsProps) => {
     const MAP_HEIGHTS = {
-        COLLAPSED: 400,
+        COLLAPSED: 300,
         EXPANDED_PERCENTAGE: 0.85,
     } as const;
 

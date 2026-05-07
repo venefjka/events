@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Edit, Lock, UserMinus, UserPlus } from 'lucide-react-native';
+import SimpleLineIcons from '@expo/vector-icons/SimpleLineIcons';
 import React, { useMemo, useState } from 'react';
-import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Alert, Linking, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileHero } from '@/components/profile/ProfileHero';
 import { ReviewCard } from '@/components/profile/ReviewCard';
@@ -181,6 +182,14 @@ export default function UserProfileScreen() {
     setIsPhotoViewerVisible(true);
   };
 
+  // todo
+  const handleOpenChat = () => {
+    const chatLink = 'https://vk.com/venefjka';
+    Linking.openURL(chatLink).catch(() => {
+      Alert.alert('Не удалось открыть чат', 'Проверьте ссылку или подключение к интернету.');
+    });
+  };
+
   return (
     <View style={commonStyles.container}>
       <SafeAreaView edges={['top']} style={styles.headerSafeArea}>
@@ -202,7 +211,7 @@ export default function UserProfileScreen() {
                     ? <UserMinus size={theme.spacing.iconSizeMedium} />
                     : <UserPlus size={theme.spacing.iconSizeMedium} />,
                   onPress: handleSubscribe,
-                  variant: 'surface',
+                  variant: subscribed ? 'surface' : 'primary',
                 },
               ]
           }
@@ -223,6 +232,18 @@ export default function UserProfileScreen() {
           attendanceRate={attendanceRate}
           onPress={displayUser.avatar ? handleOpenProfilePhoto : undefined}
         />
+
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={handleOpenChat}
+          style={[styles.chatButton, {
+            backgroundColor: 'rgba(255,255,255,0.12)',
+            borderColor: 'rgba(255,255,255,0.24)',
+            borderWidth: theme.spacing.borderWidth
+          }]}
+        >
+          <SimpleLineIcons name="bubbles" size={theme.spacing.iconSizeXLarge * 1.1} color={'#fff'} />
+        </TouchableOpacity>
 
         <View style={styles.contentContainer}>
           {selectedInterestGroups.length > 0 ? (
@@ -278,14 +299,14 @@ export default function UserProfileScreen() {
                 <UserActivityFeedList items={recentFeedItems} />
               ) : (
                 <Text style={[styles.emptySectionText, { color: theme.colors.textSecondary, ...theme.typography.caption }]}>
-                  Пока нет посещённых активностей для предпросмотра.
+                  Пока нет активностей для предпросмотра
                 </Text>
               )
             ) : (
               <View style={[styles.lockedCard, { backgroundColor: theme.colors.surface }]}>
                 <Lock size={theme.spacing.iconSizeMedium} color={theme.colors.textSecondary} />
                 <Text style={[styles.lockedText, { color: theme.colors.textSecondary, ...theme.typography.caption }]}>
-                  История посещений скрыта настройками конфиденциальности.
+                  История посещений скрыта настройками конфиденциальности
                 </Text>
               </View>
             )}
@@ -330,7 +351,18 @@ const createStyles = (theme: Theme) =>
     contentContainer: {
       paddingHorizontal: theme.spacing.screenPaddingHorizontal,
       gap: theme.spacing.xl,
-      marginTop: theme.spacing.sm,
+    },
+    chatButton: {
+      alignSelf: 'flex-end',
+      marginRight: theme.spacing.screenPaddingHorizontal,
+      width: theme.spacing.avatarSizeLarge,
+      height: theme.spacing.avatarSizeLarge,
+      borderRadius: theme.spacing.radiusRound,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginTop: -(theme.spacing.avatarSizeLarge + theme.spacing.xxxl),
+      marginBottom: theme.spacing.xxxl * 1.5,
+      zIndex: 2,
     },
     section: {
       gap: theme.spacing.sm,

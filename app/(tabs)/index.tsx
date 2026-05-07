@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import {
     View,
     StyleSheet,
@@ -49,7 +49,6 @@ export default function ExploreScreen() {
     const theme = useTheme();
     const commonStyles = createCommonStyles(theme);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedMarkerId, setSelectedMarkerId] = useState<string | null>(null);
     const [activeTab, setActiveTab] = useState<ExploreTab>('all');
     const [activeFilterSection, setActiveFilterSection] = useState<FilterSectionKey | null>(null);
     const profile = useMemo(() => getFilterProfileContext(currentUser), [currentUser]);
@@ -72,16 +71,11 @@ export default function ExploreScreen() {
         activeTab,
     });
 
-    const handleMarkerPress = (activityId: string) => {
-        setSelectedMarkerId(activityId);
+    const handleMarkerPress = useCallback(() => {
         if (!isMapExpanded) {
             toggleMapHeight();
         }
-    };
-
-    const handleClosePreview = () => {
-        setSelectedMarkerId(null);
-    };
+    }, [isMapExpanded, toggleMapHeight]);
 
     const openFilterSection = (section: FilterSectionKey) => {
         setModalFilters(createFilterDraft(filters, profile));
@@ -218,11 +212,9 @@ export default function ExploreScreen() {
                 activities={displayActivities}
                 isMapExpanded={isMapExpanded}
                 mapHeight={mapHeight}
-                selectedMarkerId={selectedMarkerId}
                 centerLatitude={filters.selectedCity?.latitude}
                 centerLongitude={filters.selectedCity?.longitude}
                 onMarkerPress={handleMarkerPress}
-                onClosePreview={handleClosePreview}
                 onToggleExpand={toggleMapHeight}
             />
 
