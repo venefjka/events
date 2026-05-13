@@ -1,7 +1,6 @@
 import React from 'react';
 import { Text, View } from 'react-native';
 import { ExpandableTabBar } from '@/components/ui/ExpandableTabs';
-import { DropdownChipSelector } from '@/components/forms/DropdownChipSelector';
 import { DropdownInputSelector } from '@/components/forms/DropdownInputSelector';
 import { getFormatItems } from '@/constants/activityPreferenceOptions';
 import { useTheme } from '@/themes/useTheme';
@@ -28,7 +27,7 @@ export function FormatFilterSection({ controller }: FilterSectionProps) {
         />
       </View>
 
-      {isOffline ? (
+      {isOffline && (
         <DropdownInputSelector
           label="Город"
           value={controller.localFilters.cityQuery ?? ''}
@@ -56,45 +55,6 @@ export function FormatFilterSection({ controller }: FilterSectionProps) {
           maxDropdownHeight={200}
           error={controller.cityError}
         />
-      ) : (
-        <View>
-          <Text style={{ ...theme.typography.label, color: theme.colors.text, marginBottom: theme.spacing.sm }}>
-            Часовой пояс
-          </Text>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={{ ...theme.typography.captionBold, color: theme.colors.textTertiary, marginTop: theme.spacing.lg }}>
-              от
-            </Text>
-            <View style={{ width: '40%' }}>
-              <DropdownChipSelector
-                label=""
-                value={controller.minTimeZoneValue}
-                items={controller.timeZoneOptions.map((option) => ({
-                  id: String(option.offsetHours),
-                  label: option.label,
-                }))}
-                onSelect={controller.handleMinTimeZoneChange}
-                allowClear={false}
-              />
-            </View>
-
-            <Text style={{ ...theme.typography.captionBold, color: theme.colors.textTertiary, marginTop: theme.spacing.lg }}>
-              до
-            </Text>
-            <View style={{ width: '40%' }}>
-              <DropdownChipSelector
-                label=""
-                value={controller.maxTimeZoneValue}
-                items={controller.timeZoneOptions.map((option) => ({
-                  id: String(option.offsetHours),
-                  label: option.label,
-                }))}
-                onSelect={controller.handleMaxTimeZoneChange}
-                allowClear={false}
-              />
-            </View>
-          </View>
-        </View>
       )}
     </View>
   );

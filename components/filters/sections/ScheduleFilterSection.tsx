@@ -5,15 +5,17 @@ import { formatDateInputFromDateType } from '@/utils/date';
 import { useTheme } from '@/themes/useTheme';
 import type { FilterSectionProps } from '../types';
 
-export function ScheduleFilterSection({ controller }: FilterSectionProps) {
+export function ScheduleFilterSection({ controller, allowPastDates = false }: FilterSectionProps) {
   const theme = useTheme();
 
   return (
-    <View style={{ gap: theme.spacing.lg }}>
+    <View style={{ paddingVertical: theme.spacing.md }}>
       <ActivityScheduleCalendar
         variant="inputs"
         duration="period"
         headerVariant="default"
+        inputLabels={{ start: '    От', end: '    До' }}
+        allowPastDates={allowPastDates}
         isOpen={controller.isCalendarOpen}
         onToggle={controller.setIsCalendarOpen}
         startDate={controller.startDate}

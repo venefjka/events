@@ -4,7 +4,6 @@ import { categories } from '@/constants/categories';
 import { parseMaxParticipantsInput } from '@/constants/activityPreferenceOptions';
 import { parseDateInput } from '@/utils/date';
 import { formatDateInput, formatTimeInput } from '@/utils/formatInput';
-import { getUtcOffsetOptions } from '@/utils/timezone';
 import { verifyCityByNominatim, type CitySearchResult } from '@/utils/verifyCity';
 import { useTheme } from '@/themes/useTheme';
 import type { FilterState } from '@/types';
@@ -31,7 +30,6 @@ export const useFiltersFormController = ({
   );
   const citySearchRequestId = useRef(0);
 
-  const timeZoneOptions = useMemo(() => getUtcOffsetOptions(), []);
   const selectedCategoryId = localFilters.categoryId ?? '';
   const selectedCategory = categories.find((cat) => cat.id === selectedCategoryId);
   const subcategories = selectedCategory?.subcategories ?? [];
@@ -52,8 +50,6 @@ export const useFiltersFormController = ({
   const ageToValue = localFilters.ageTo ?? '';
   const startDate = useMemo(() => parseDateInput(localFilters.dateFrom ?? ''), [localFilters.dateFrom]);
   const endDate = useMemo(() => parseDateInput(localFilters.dateTo ?? ''), [localFilters.dateTo]);
-  const minTimeZoneValue = String(localFilters.timeZoneRange[0]);
-  const maxTimeZoneValue = String(localFilters.timeZoneRange[1]);
 
   const handleStartDateInput = useCallback((text: string) => {
     const nextValue = formatDateInput(text);
@@ -254,28 +250,6 @@ export const useFiltersFormController = ({
     setCityError(undefined);
   }, [setLocalFilters]);
 
-  const handleMinTimeZoneChange = useCallback((value: string) => {
-    const offset = Number(value);
-    setLocalFilters((prev) => {
-      const [, max] = prev.timeZoneRange;
-      return {
-        ...prev,
-        timeZoneRange: [offset, Math.max(offset, max)],
-      };
-    });
-  }, [setLocalFilters]);
-
-  const handleMaxTimeZoneChange = useCallback((value: string) => {
-    const offset = Number(value);
-    setLocalFilters((prev) => {
-      const [min] = prev.timeZoneRange;
-      return {
-        ...prev,
-        timeZoneRange: [Math.min(min, offset), offset],
-      };
-    });
-  }, [setLocalFilters]);
-
   const handlePriceInput = useCallback((text: string) => {
     const numeric = text.replace(/\D/g, '').slice(0, 6);
     if (!numeric) {
@@ -363,9 +337,6 @@ export const useFiltersFormController = ({
     ageToValue,
     startDate,
     endDate,
-    timeZoneOptions,
-    minTimeZoneValue,
-    maxTimeZoneValue,
     isCalendarOpen,
     setIsCalendarOpen,
     cityError,
@@ -376,8 +347,6 @@ export const useFiltersFormController = ({
     handleFormatChange,
     handleCityQueryChange,
     handleSelectCity,
-    handleMinTimeZoneChange,
-    handleMaxTimeZoneChange,
     handleStartDateInput,
     handleEndDateInput,
     handleStartTimeInput,

@@ -1,8 +1,7 @@
-import type { UserRecord, FilterState } from '@/types';
+import type { FilterState } from '@/types';
+import type { UserProfileDto } from '@/types/dto';
 import type { FilterProfileContext, FilterSectionKey } from './types';
 import { categories } from '@/constants/categories';
-
-export const DEFAULT_TIMEZONE_RANGE: [number, number] = [-12, 14];
 
 export const createDefaultFilters = (
   profile?: Pick<FilterProfileContext, 'profileCity' | 'profileCityTitle' | 'profileSelectedCity'>
@@ -26,15 +25,14 @@ export const createDefaultFilters = (
   dateTo: '',
   timeFrom: '',
   timeTo: '',
-  timeZoneRange: [...DEFAULT_TIMEZONE_RANGE],
 });
 
-export const getFilterProfileContext = (currentUser?: UserRecord | null): FilterProfileContext => {
-  const profileCity = currentUser?.cityPlace?.settlement?.trim() ?? '';
+export const getFilterProfileContext = (currentUser?: UserProfileDto | null): FilterProfileContext => {
+  const profileCity = currentUser?.city?.settlement?.trim() ?? '';
   const profileCityTitle = [
-    currentUser?.cityPlace?.settlement,
-    currentUser?.cityPlace?.region,
-    currentUser?.cityPlace?.country,
+    currentUser?.city?.settlement,
+    currentUser?.city?.region,
+    currentUser?.city?.country,
   ]
     .filter(Boolean)
     .join(', ');
@@ -42,10 +40,10 @@ export const getFilterProfileContext = (currentUser?: UserRecord | null): Filter
   return {
     profileCity,
     profileCityTitle,
-    profileSelectedCity: currentUser?.cityPlace
+    profileSelectedCity: currentUser?.city
       ? {
-          ...currentUser.cityPlace,
-          title: currentUser.cityPlace.title ?? profileCityTitle,
+          ...currentUser.city,
+          title: currentUser.city.title ?? profileCityTitle,
         }
       : null,
   };
@@ -108,14 +106,7 @@ export const getCategoryFilterSummary = (filters: FilterState) => {
 
 export const getFormatFilterSummary = (filters: FilterState) => {
   if (filters.format === 'online') {
-    const [minOffset, maxOffset] = filters.timeZoneRange;
-    if (
-      minOffset === DEFAULT_TIMEZONE_RANGE[0] &&
-      maxOffset === DEFAULT_TIMEZONE_RANGE[1]
-    ) {
-      return 'Онлайн';
-    }
-    return `Онлайн · UTC${minOffset}…${maxOffset}`;
+    return 'Онлайн';
   }
 
   const city = shortCity(filters);
@@ -157,10 +148,10 @@ export const getParticipationFilterSummary = (filters: FilterState) => {
   if (filters.priceTo != null) {
     parts.push(`до ${filters.priceTo} ₽`);
   }
-  if (filters.registrationType === 'yes') {
+  if (filters.registrationType === 'request') {
     parts.push('по заявке');
   }
-  if (filters.registrationType === 'no') {
+  if (filters.registrationType === 'free') {
     parts.push('свободно');
   }
   if (filters.maxParticipants != null) {
@@ -204,9 +195,7 @@ export const isFilterSectionActive = (filters: FilterState, key: FilterSectionKe
     case 'format':
       return (
         filters.format === 'online' ||
-        Boolean(filters.cityQuery?.trim()) ||
-        filters.timeZoneRange[0] !== DEFAULT_TIMEZONE_RANGE[0] ||
-        filters.timeZoneRange[1] !== DEFAULT_TIMEZONE_RANGE[1]
+        Boolean(filters.cityQuery?.trim())
       );
     case 'schedule':
       return Boolean(filters.dateFrom || filters.dateTo || filters.timeFrom || filters.timeTo);
@@ -253,7 +242,6 @@ export const applySectionDefaults = (
               format: defaults.format,
               cityQuery: defaults.cityQuery,
               selectedCity: defaults.selectedCity,
-              timeZoneRange: defaults.timeZoneRange,
           };
       case 'schedule':
           return {

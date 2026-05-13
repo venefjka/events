@@ -7,6 +7,7 @@ import { useTheme } from '@/themes/useTheme';
 interface FilterBottomSheetModalProps {
   visible: boolean;
   title?: string;
+  titleSecondary?: string;
   children: React.ReactNode;
   onClose: () => void;
   onApply?: () => void;
@@ -17,6 +18,7 @@ interface FilterBottomSheetModalProps {
 export function FilterBottomSheetModal({
   visible,
   title,
+  titleSecondary,
   children,
   onClose,
   onApply,
@@ -45,6 +47,7 @@ export function FilterBottomSheetModal({
     <BottomSheetModal
       visible={visible}
       title={title}
+      titleSecondary={titleSecondary}
       onClose={onClose}
       footer={footer}
     >

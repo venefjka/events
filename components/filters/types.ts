@@ -39,9 +39,6 @@ export interface FiltersFormController {
   ageToValue: number | '';
   startDate?: Date;
   endDate?: Date;
-  timeZoneOptions: Array<{ offsetHours: number; label: string }>;
-  minTimeZoneValue: string;
-  maxTimeZoneValue: string;
   isCalendarOpen: boolean;
   setIsCalendarOpen: React.Dispatch<React.SetStateAction<boolean>>;
   cityError?: string;
@@ -52,8 +49,6 @@ export interface FiltersFormController {
   handleFormatChange: (format: FilterState['format']) => void;
   handleCityQueryChange: (text: string) => void;
   handleSelectCity: (place: CitySearchResult) => void;
-  handleMinTimeZoneChange: (value: string) => void;
-  handleMaxTimeZoneChange: (value: string) => void;
   handleStartDateInput: (text: string) => void;
   handleEndDateInput: (text: string) => void;
   handleStartTimeInput: (text: string) => void;
@@ -75,4 +70,5 @@ export interface FiltersFormController {
 
 export interface FilterSectionProps {
   controller: FiltersFormController;
+  allowPastDates?: boolean;
 }

@@ -5,7 +5,7 @@ import Feather from '@expo/vector-icons/Feather';
 
 export type GenderOption = 'any' | 'male' | 'female';
 export type LevelOption = 'any' | 'beginner' | 'intermediate' | 'advanced';
-export type ApprovalOption = 'yes' | 'no';
+export type ApprovalOption = 'request' | 'free';
 export type ApprovalFilterOption = 'any' | ApprovalOption;
 
 export const getGenderItems = () => [
@@ -65,14 +65,14 @@ export const getLevelItems = () => [
 
 export const getApprovalItems = () => [
   {
-    id: 'yes' as const,
+    id: 'request' as const,
     label: 'По заявке',
     renderIcon: ({ color, size }: { color: string; size: number }) => (
       <Feather name="lock" size={size} color={color} />
     ),
   },
   {
-    id: 'no' as const,
+    id: 'free' as const,
     label: 'Свободная',
     renderIcon: ({ color, size }: { color: string; size: number }) => (
       <Feather name="unlock" size={size} color={color} />

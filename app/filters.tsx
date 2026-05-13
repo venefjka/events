@@ -92,7 +92,7 @@ export default function FiltersScreen() {
         <View style={dividerStyle} />
 
         <View style={sectionStyle}>
-          <ScheduleFilterSection controller={controller} />
+          <ScheduleFilterSection controller={controller} allowPastDates={resolvedScope === 'my-activities'} />
         </View>
 
         <View style={dividerStyle} />
