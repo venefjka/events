@@ -1,6 +1,35 @@
 import React from "react";
 import Svg, { Circle, Ellipse, Path } from "react-native-svg";
 
+export default function GhostAvatar({
+  size = 120,
+  color = '#FFFFFF',
+  background = '#000000',
+}) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 200 200">
+      <Path d="M0 0H200V200H0Z" fill={background} />
+      <Path
+        d="
+          M100 45
+          C70 45 53 70 53 106
+          V145
+          Q64 160, 76 145
+          Q88 160, 100 145
+          Q112 160, 124 145
+          Q136 160, 147 145
+          V106
+          C147 70 130 45 100 45
+          Z
+        "
+        fill={color}
+      />
+      <Circle cx="85" cy="82" r="8" fill={background} />
+      <Circle cx="115" cy="82" r="8" fill={background} />
+    </Svg>
+  );
+}
+
 export const EducationIcon = (size: number) => (
   <Svg
     width={size}

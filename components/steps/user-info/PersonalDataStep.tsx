@@ -169,20 +169,18 @@ export const PersonalDataStep: React.FC<PersonalDataStepProps> = ({ data, update
   return (
     <View style={[styles.container, { padding: theme.spacing.screenPaddingHorizontal }]}>
       <View style={{ gap: theme.spacing.md }}>
-        {mode === 'register' && (
-          <FormField
-            label="Ваше имя"
-            value={data.name || ''}
-            onChangeText={(text) => updateData({ name: text })}
-            placeholder="Александр"
-            autoCapitalize="words"
-            error={nameError}
-
-            autoComplete="off"
-            textContentType="none"
-            importantForAutofill="no"
-          />
-        )}
+        <FormField
+          label="Ваше имя"
+          value={data.name || ''}
+          onChangeText={(text) => updateData({ name: text })}
+          placeholder="Александр"
+          autoCapitalize="words"
+          error={nameError}
+          maxLength={40}
+          autoComplete="off"
+          textContentType="none"
+          importantForAutofill="no"
+        />
 
         {/* Дата рождения + Отображать в профиле */}
         <View style={{ flexDirection: 'row', gap: theme.spacing.xxl }} >
@@ -311,4 +309,3 @@ export const PersonalDataStep: React.FC<PersonalDataStepProps> = ({ data, update
 const styles = StyleSheet.create({
   container: { flex: 1 },
 });
-

@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useState } from 'react';
+﻿import React from 'react';
 import {
     View,
     Text,
@@ -6,16 +6,12 @@ import {
     ScrollView,
     TouchableOpacity,
     Alert,
-    Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import {
-    Settings,
     LogOut,
     Users,
     QrCode,
-    Lock,
     Bell,
     Palette,
     HelpCircle,
@@ -25,19 +21,18 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { router } from 'expo-router';
 import { Avatar } from '@/components/ui/Avatar';
-import { Card } from '@/components/ui/Card';
-import { Button } from '@/components/ui/Button';
 import { Header } from '@/components/ui/Header';
 import { useTheme } from '@/themes/useTheme';
 import { createCommonStyles } from '@/styles/common';
-import { getAgeLabel, getUserAge } from '@/utils/user';
+import { getAgeLabel } from '@/utils/user';
+import { getFileUrl } from '@/utils/files';
 
 export default function ProfileScreen() {
-    const { currentUser, logout, updateUser } = useAuth();
+    const { currentUser, logout } = useAuth();
     const theme = useTheme();
     const commonStyles = createCommonStyles(theme);
-    const [showSettings, setShowSettings] = useState(false);
-    const userAge = getUserAge(currentUser?.birthDate);
+    const userAge = currentUser?.age;
+    const avatarUri = getFileUrl(currentUser?.avatarFileId);
     const iconBoxSize = 40;
     const separatorInset = theme.spacing.screenPaddingHorizontal + iconBoxSize + 16;
 
@@ -53,7 +48,7 @@ export default function ProfileScreen() {
             <TouchableOpacity
                 style={[styles.menuItem, {
                     paddingHorizontal: theme.spacing.screenPaddingHorizontal,
-                    paddingVertical: theme.spacing.md,
+                    paddingVertical: theme.spacing.sm,
                 }]}
                 onPress={item.onPress}
             >
@@ -69,10 +64,10 @@ export default function ProfileScreen() {
                             color: theme.colors.text,
                         })}
                     </View>
-                    <Text style={[styles.menuItemText, {
-                        ...theme.typography.bodyBold,
+                    <Text style={{
+                        ...theme.typography.body,
                         color: theme.colors.text,
-                    }]}>{item.label}</Text>
+                    }}>{item.label}</Text>
                 </View>
                 <ChevronRight size={theme.spacing.iconSize} color={theme.colors.textTertiary} />
             </TouchableOpacity>
@@ -108,11 +103,6 @@ export default function ProfileScreen() {
 
     const settingsItems: MenuItemConfig[] = [
         {
-            key: 'privacy',
-            label: 'Конфиденциальность',
-            icon: <Lock />,
-        },
-        {
             key: 'notifications',
             label: 'Уведомления',
             icon: <Bell />,
@@ -132,32 +122,20 @@ export default function ProfileScreen() {
         },
     ];
 
-    const handleAvatarPress = useCallback(async () => {
-        if (!currentUser) return;
-
-        const existingPermission = await ImagePicker.getMediaLibraryPermissionsAsync();
-        if (!existingPermission.granted) {
-            const requested = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (!requested.granted) {
-                Alert.alert('Доступ к фото', 'Разрешите доступ к фото, чтобы выбрать аватар.');
-                return;
-            }
-        }
-
-        const result = await ImagePicker.launchImageLibraryAsync({
-            mediaTypes: ['images'],
-            allowsEditing: true,
-            aspect: [1, 1],
-            quality: 0.8,
-        });
-
-        if (!result.canceled) {
-            const uri = result.assets?.[0]?.uri;
-            if (uri) {
-                await updateUser(currentUser.id, { avatar: uri });
-            }
-        }
-    }, [currentUser, updateUser]);
+    const showLogoutAlert = () => {
+        Alert.alert(
+            'Выход',
+            'Вы уверены?',
+            [
+                { text: 'Отмена', style: 'cancel' },
+                {
+                    text: 'Выйти',
+                    style: 'destructive',
+                    onPress: logout,
+                },
+            ]
+        );
+    };
 
     if (!currentUser) {
         return null;
@@ -168,45 +146,43 @@ export default function ProfileScreen() {
             <Header
                 title="Профиль"
                 rightButtons={[{
-                    icon: <Settings size={theme.spacing.iconSize} />,
-                    onPress: () => setShowSettings(true),
+                    icon: <LogOut size={theme.spacing.iconSize * 0.9} />,
+                    onPress: showLogoutAlert,
                     variant: 'surface',
                 }]}
-                // borderBottom={false}
             />
 
             <ScrollView style={[commonStyles.content, { backgroundColor: theme.colors.surface }]} showsVerticalScrollIndicator={false}>
                 <View style={[styles.profileCard, {
                     borderBottomColor: theme.colors.surface,
-                    // borderBottomWidth: theme.spacing.sectionDivider,
                     paddingVertical: theme.spacing.xxxl,
                     backgroundColor: theme.colors.surface,
                 }]}>
                     <TouchableOpacity
                         style={styles.avatarButton}
                         activeOpacity={0.8}
-                        onPress={handleAvatarPress}
                     >
-                        <Avatar name={currentUser.name} size="large" imageUrl={currentUser.avatar} />
+                        <Avatar name={currentUser.name} size="large" imageUrl={avatarUri} />
                     </TouchableOpacity>
-                    <Text style={[styles.name, {
+                    <Text style={{
                         ...theme.typography.h4,
                         color: theme.colors.text,
                         marginTop: theme.spacing.md,
                         marginBottom: theme.spacing.xs,
-                    }]}>{currentUser.name}</Text>
+                        textAlign: 'center'
+                    }}>{currentUser.name}</Text>
                     {typeof userAge === 'number' && (
-                        <Text style={[styles.age, {
+                        <Text style={{
                             ...theme.typography.body,
                             color: theme.colors.textSecondary,
-                        }]}>{userAge} {getAgeLabel(userAge)}, {currentUser.cityPlace?.settlement}</Text>
+                        }}>{userAge} {getAgeLabel(userAge)}, {currentUser.city.settlement}</Text>
                     )}
                 </View>
 
                 <View style={[styles.section, {
                     borderBottomColor: theme.colors.surface,
                     borderBottomWidth: theme.spacing.sectionDivider,
-                    paddingVertical: theme.spacing.sm,
+                    paddingVertical: theme.spacing.xs,
                     backgroundColor: theme.colors.background,
                 }]}>
                     {profileItems.map((item, index) => renderMenuItem(item, index, profileItems.length))}
@@ -215,16 +191,16 @@ export default function ProfileScreen() {
                 <View style={[styles.section, {
                     borderBottomColor: theme.colors.surface,
                     borderBottomWidth: theme.spacing.sectionDivider,
-                    paddingVertical: theme.spacing.sm,
+                    paddingVertical: theme.spacing.xs,
                     backgroundColor: theme.colors.background,
                 }]}>
-                    <Text style={[styles.sectionTitle, {
+                    <Text style={{
                         ...theme.typography.overline,
                         color: theme.colors.textTertiary,
                         paddingHorizontal: theme.spacing.screenPaddingHorizontal,
-                        paddingTop: theme.spacing.lg,
-                        paddingBottom: theme.spacing.sm,
-                    }]}>Настройки</Text>
+                        paddingTop: theme.spacing.md - 2,
+                        paddingBottom: theme.spacing.xs,
+                    }}>Настройки</Text>
 
                     {settingsItems.map((item, index) => renderMenuItem(item, index, settingsItems.length))}
                 </View>
@@ -232,88 +208,20 @@ export default function ProfileScreen() {
                 <View style={[styles.section, {
                     borderBottomColor: theme.colors.surface,
                     borderBottomWidth: theme.spacing.sectionDivider * 4,
-                    paddingVertical: theme.spacing.sm,
+                    paddingVertical: theme.spacing.xs,
                     backgroundColor: theme.colors.background,
                 }]}>
-                    <Text style={[styles.sectionTitle, {
+                    <Text style={{
                         ...theme.typography.overline,
                         color: theme.colors.textTertiary,
                         paddingHorizontal: theme.spacing.screenPaddingHorizontal,
-                        paddingTop: theme.spacing.lg,
-                        paddingBottom: theme.spacing.sm,
-                    }]}>Помощь</Text>
+                        paddingTop: theme.spacing.md - 2,
+                        paddingBottom: theme.spacing.xs,
+                    }}>Помощь</Text>
 
                     {helpItems.map((item, index) => renderMenuItem(item, index, helpItems.length))}
                 </View>
             </ScrollView>
-
-            <Modal
-                visible={showSettings}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setShowSettings(false)}
-            >
-                <TouchableOpacity
-                    style={[styles.modalOverlay, { backgroundColor: theme.colors.overlay }]}
-                    activeOpacity={1}
-                    onPress={() => setShowSettings(false)}
-                >
-                    <View style={styles.settingsModalContainer}>
-                        <Card variant="elevated" padding="large" style={{
-                            backgroundColor: theme.colors.background,
-                            borderRadius: theme.spacing.radiusLarge,
-                            maxWidth: 400,
-                            width: '100%',
-                        }}>
-                            <Text style={[styles.settingsTitle, {
-                                ...theme.typography.h3,
-                                color: theme.colors.text,
-                                marginBottom: theme.spacing.xl,
-                            }]}>Настройки</Text>
-
-                            <TouchableOpacity
-                                style={[styles.settingsOption, {
-                                    backgroundColor: theme.colors.surface,
-                                    borderRadius: theme.spacing.radius,
-                                    paddingVertical: theme.spacing.lg,
-                                    paddingHorizontal: theme.spacing.md,
-                                    marginBottom: theme.spacing.md,
-                                }]}
-                                onPress={() => {
-                                    setShowSettings(false);
-                                    Alert.alert(
-                                        'Выход',
-                                        'Вы уверены?',
-                                        [
-                                            { text: 'Отмена', style: 'cancel' },
-                                            {
-                                                text: 'Выйти',
-                                                style: 'destructive',
-                                                onPress: logout,
-                                            },
-                                        ]
-                                    );
-                                }}
-                            >
-                                <LogOut size={theme.spacing.iconSize} color={theme.colors.error} />
-                                <Text style={[styles.settingsOptionText, {
-                                    ...theme.typography.bodyBold,
-                                    color: theme.colors.error,
-                                    marginLeft: theme.spacing.md,
-                                }]}>Выйти</Text>
-                            </TouchableOpacity>
-
-                            <Button
-                                title="Отмена"
-                                onPress={() => setShowSettings(false)}
-                                variant="ghost"
-                                size="medium"
-                                fullWidth
-                            />
-                        </Card>
-                    </View>
-                </TouchableOpacity>
-            </Modal>
         </SafeAreaView>
     );
 }
@@ -325,17 +233,8 @@ const styles = StyleSheet.create({
     avatarButton: {
         borderRadius: 999,
     },
-    name: {
-        fontSize: 22,
-    },
-    age: {
-        fontSize: 15,
-    },
     section: {
         paddingVertical: 8,
-    },
-    sectionTitle: {
-        fontSize: 13,
     },
     menuItem: {
         flexDirection: 'row',
@@ -354,32 +253,4 @@ const styles = StyleSheet.create({
     menuItemSeparator: {
         height: 1,
     },
-    menuItemText: {
-        fontSize: 16,
-    },
-    modalOverlay: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    settingsModalContainer: {
-        width: '100%',
-        maxWidth: 400,
-    },
-    settingsModal: {
-        width: '100%',
-    },
-    settingsTitle: {
-        fontSize: 22,
-    },
-    settingsOption: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    settingsOptionText: {
-        fontSize: 16,
-    },
 });
-
-

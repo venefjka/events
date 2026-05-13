@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Image,
   Modal,
   ScrollView,
   StyleSheet,
@@ -21,6 +20,7 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import { ChevronLeft } from 'lucide-react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { useTheme } from '@/themes/useTheme';
 import type { Theme } from '@/themes/theme';
 
@@ -221,7 +221,7 @@ export function PhotoViewerModal({
                 <GestureDetector gesture={photoGesture}>
                   <Animated.View collapsable={false} style={[styles.photoFrame, animatedPhotoStyle]}>
                     <View collapsable={false} style={styles.gestureSurface}>
-                      <Image source={{ uri: activePhoto }} style={styles.mainImage} />
+                      <CachedImage uri={activePhoto} style={styles.mainImage} contentFit="contain" />
                     </View>
                   </Animated.View>
                 </GestureDetector>
@@ -255,7 +255,7 @@ export function PhotoViewerModal({
                         ]}
                         onPress={() => setActiveIndex(index)}
                       >
-                        <Image source={{ uri: photo }} style={styles.thumbnailImage} />
+                        <CachedImage uri={photo} style={styles.thumbnailImage} />
                       </TouchableOpacity>
                     );
                   })}
@@ -327,7 +327,6 @@ const createStyles = (theme: Theme) =>
     mainImage: {
       width: '100%',
       height: '100%',
-      resizeMode: 'contain',
     },
     emptyState: {
       flex: 1,

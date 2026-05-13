@@ -1,68 +1,61 @@
 import React, { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams } from 'expo-router';
 import { Asterisk, CalendarPlus2, CircleUserRound, Star } from 'lucide-react-native';
 import { Header } from '@/components/ui/Header';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ExpandableTabBar } from '@/components/ui/ExpandableTabs';
-import { UserActivityFeedList } from '@/components/user-activity/UserActivityFeedList';
-import { useActivities } from '@/contexts/ActivitiesContext';
-import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
-import { useActivityRatings } from '@/contexts/ActivityRatingsContext';
-import { useAuth } from '@/contexts/AuthContext';
-import { useUserActivityFeed } from '@/contexts/UserActivityFeedContext';
-import { useUsers } from '@/contexts/UsersContext';
+import { UserHistoryList } from '@/components/UserHistoryList';
+import { useUserHistory } from '@/hooks/queries/useUserHistory';
+import { useUserProfile } from '@/hooks/queries/useUserProfile';
 import { createCommonStyles } from '@/styles/common';
-import { UserPublic, UserRecord } from '@/types';
-import {
-  buildUserActivityFeedItems,
-  getUserActivityFeedCategory,
-  type UserActivityFeedCategory,
-} from '@/utils/userActivityFeed';
-import { buildUserPublic } from '@/utils/user';
 import type { Theme } from '@/themes/theme';
 import { useTheme } from '@/themes/useTheme';
+
+type HistoryTab = 'all' | 'organizer' | 'participant' | 'ratings';
 
 export default function UserHistoryScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const userId = typeof id === 'string' ? id : '';
-  const { currentUser } = useAuth();
-  const { getUserById } = useUsers();
-  const { allActivities } = useActivities();
-  const { getUserParticipationRecords, participationUpdatedAt } = useActivityParticipation();
-  const { activityRatings } = useActivityRatings();
-  const { feedEvents, isLoading } = useUserActivityFeed();
+  const [activeTab, setActiveTab] = useState<HistoryTab>('all');
+  const profileQuery = useUserProfile(userId);
+  const historyQuery = useUserHistory(
+    userId,
+    { tab: activeTab, limit: 50 },
+    Boolean(userId && activeTab)
+  );
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const commonStyles = useMemo(() => createCommonStyles(theme), [theme]);
-  const [activeFilter, setActiveFilter] = useState<UserActivityFeedCategory>('all');
+  const events = activeTab ? historyQuery.data?.items ?? [] : [];
+  const userGender = profileQuery.data?.gender;
 
-  const filterOptions = useMemo(
+  const tabItems = useMemo(
     () => [
       {
-        id: 'all' as UserActivityFeedCategory,
+        id: 'all' as const,
         label: 'Вся',
         renderIcon: ({ size, color }: { size: number; color: string }) => (
           <Asterisk size={size * 1.2} color={color} />
         ),
       },
       {
-        id: 'organizer' as UserActivityFeedCategory,
+        id: 'organizer' as const,
         label: 'Организатор',
         renderIcon: ({ size, color }: { size: number; color: string }) => (
           <CalendarPlus2 size={size} color={color} />
         ),
       },
       {
-        id: 'participant' as UserActivityFeedCategory,
+        id: 'participant' as const,
         label: 'Участник',
         renderIcon: ({ size, color }: { size: number; color: string }) => (
           <CircleUserRound size={size} color={color} />
         ),
       },
       {
-        id: 'ratings' as UserActivityFeedCategory,
+        id: 'ratings' as const,
         label: 'Оценки',
         renderIcon: ({ size, color }: { size: number; color: string }) => (
           <Star size={size} color={color} />
@@ -72,81 +65,15 @@ export default function UserHistoryScreen() {
     []
   );
 
-  const userRecord = getUserById(userId);
-  const baseUser = userRecord ?? null;
-
-  if (!baseUser || !currentUser) {
-    return (
-      <SafeAreaView style={commonStyles.container} edges={['top', 'bottom']}>
-        <Header showBackButton title="История активности" borderBottom={false} />
-        <View style={commonStyles.emptyContainer}>
-          <EmptyState
-            title="Пользователь не найден"
-            description="Не удалось открыть историю для этого профиля."
-          />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const isOwnProfile = baseUser.id === currentUser.id;
-  const displayUser: UserRecord | UserPublic = isOwnProfile
-    ? (userRecord ?? currentUser)
-    : userRecord
-      ? buildUserPublic(userRecord, currentUser.id)
-      : baseUser;
-
-  const canViewParticipationHistory = Boolean(
-    isOwnProfile || (userRecord && userRecord.privacy?.showAttendanceHistory)
-  );
-
-  const feedItems = useMemo(
-    () =>
-      buildUserActivityFeedItems({
-        userId,
-        canViewParticipationHistory,
-        events: feedEvents,
-        activities: allActivities,
-        participationRecords: getUserParticipationRecords(userId),
-        activityRatings,
-      }),
-    [
-      activityRatings,
-      allActivities,
-      canViewParticipationHistory,
-      displayUser.id,
-      feedEvents,
-      getUserParticipationRecords,
-      participationUpdatedAt,
-      userId,
-    ]
-  );
-
-  const filteredFeed = useMemo(
-    () =>
-      feedItems.filter(
-        (item) => activeFilter === 'all' || getUserActivityFeedCategory(item.type) === activeFilter
-      ),
-    [activeFilter, feedItems]
-  );
-
-  const isEmpty = filteredFeed.length === 0;
-  const emptyDescription =
-    canViewParticipationHistory || activeFilter === 'organizer' || activeFilter === 'all'
-      ? 'Пока нет событий для выбранного фильтра'
-      : 'История участника скрыта настройками конфиденциальности';
-
   return (
     <SafeAreaView style={commonStyles.container} edges={['top']}>
       <Header showBackButton title="История активности" borderBottom={false} />
 
       <View style={styles.filtersWrap}>
-        <ExpandableTabBar
-          items={filterOptions.filter(
-            (option) => canViewParticipationHistory || option.id === 'all' || option.id === 'organizer'
-          )}
-          activeId={activeFilter}
-          onChange={setActiveFilter}
+        <ExpandableTabBar<HistoryTab>
+          items={tabItems}
+          activeId={activeTab}
+          onChange={setActiveTab}
           gap={theme.spacing.sm}
           circleSize={44}
           iconSize={18}
@@ -155,34 +82,23 @@ export default function UserHistoryScreen() {
         />
       </View>
 
-      <ScrollView
+      <FlatList
         style={[commonStyles.content, { backgroundColor: theme.colors.surface }]}
-        contentContainerStyle={styles.content}
-        showsVerticalScrollIndicator={false}
-      >
-        {isLoading ? (
-          <View style={styles.emptyState}>
-            <Text style={[styles.emptyText, { color: theme.colors.textSecondary, ...theme.typography.body }]}>
-              Загружаем историю...
-            </Text>
-          </View>
-        ) : isEmpty ? (
-          <View style={styles.emptyState}>
-            <EmptyState
-              title="Событий пока нет"
-              description={emptyDescription}
-            />
-          </View>
-        ) : (
-          <UserActivityFeedList items={filteredFeed} style={{
-            backgroundColor: theme.colors.background,
-            paddingHorizontal: theme.spacing.screenPaddingHorizontal,
-            paddingTop: theme.spacing.md,
-            paddingBottom: theme.spacing.xs,
-            borderRadius: theme.spacing.radiusLarge,
-          }} />
-        )}
-      </ScrollView>
+        contentContainerStyle={[
+          styles.content,
+          events.length === 0 && styles.emptyContent,
+          { paddingTop: theme.spacing.md },
+        ]}
+        data={events}
+        keyExtractor={(item) => `${item.type}-${item.occurredAt}-${item.activity.id}`}
+        renderItem={({ item }) => <UserHistoryList items={[item]} userGender={userGender} />}
+        ListEmptyComponent={
+          <EmptyState
+            title={historyQuery.isLoading ? 'Загружаем...' : 'Событий пока нет'}
+            description="История активности пользователя на платформе не содержит записей"
+          />
+        }
+      />
     </SafeAreaView>
   );
 }
@@ -197,13 +113,10 @@ const createStyles = (theme: Theme) =>
       flexGrow: 0,
     },
     content: {
-      paddingBottom: theme.spacing.xxxl,
-      gap: theme.spacing.md,
+      paddingHorizontal: theme.spacing.screenPaddingHorizontal,
     },
-    emptyState: {
-      paddingTop: theme.spacing.xxl,
-    },
-    emptyText: {
-      textAlign: 'center',
+    emptyContent: {
+      flexGrow: 1,
+      justifyContent: 'center',
     },
   });

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 import { useTheme } from '@/themes/useTheme';
 import { FormField } from '../../forms/FormField';
 import { Mail, Lock } from 'lucide-react-native';
@@ -30,7 +30,6 @@ export const AccountStep: React.FC<AccountStepProps> = ({ data, updateData, mode
                     keyboardType="email-address"
                     autoCapitalize="none"
                     icon={<Mail size={20} color={theme.colors.border} />}
-                    disabled={mode === 'edit'}
                     error={emailError}
                     autoComplete="off"
                     textContentType="none"
@@ -41,7 +40,7 @@ export const AccountStep: React.FC<AccountStepProps> = ({ data, updateData, mode
                     label={mode === 'edit' ? 'Новый пароль' : 'Пароль'}
                     value={data.password || ''}
                     onChangeText={(text) => updateData({ password: text })}
-                    placeholder="Минимум 6 символов"
+                    placeholder="Минимум 8 символов"
                     secureTextEntry={true}
                     icon={<Lock size={20} color={theme.colors.border} />}
                     error={passwordError}
@@ -55,27 +54,23 @@ export const AccountStep: React.FC<AccountStepProps> = ({ data, updateData, mode
                     }}
                 />
 
-                {mode === 'register' && (
-                    <>
-                        <FormField
-                            label="Подтверждение пароля"
-                            value={data.confirmPassword || ''}
-                            onChangeText={(text) => updateData({ confirmPassword: text })}
-                            placeholder="Повторите пароль"
-                            secureTextEntry={true}
-                            icon={<Lock size={20} color={theme.colors.border} />}
-                            error={confirmPasswordError}
-                            autoComplete="off"
-                            textContentType="oneTimeCode"
-                            importantForAutofill="no"
-                            onEndEditing={(text) => {
-                                if (!text.trim()) {
-                                    updateData({ confirmPassword: '' });
-                                }
-                            }}
-                        />
-                    </>
-                )}
+                <FormField
+                    label="Подтверждение пароля"
+                    value={data.confirmPassword || ''}
+                    onChangeText={(text) => updateData({ confirmPassword: text })}
+                    placeholder="Повторите пароль"
+                    secureTextEntry={true}
+                    icon={<Lock size={20} color={theme.colors.border} />}
+                    error={confirmPasswordError}
+                    autoComplete="off"
+                    textContentType="oneTimeCode"
+                    importantForAutofill="no"
+                    onEndEditing={(text) => {
+                        if (!text.trim()) {
+                            updateData({ confirmPassword: '' });
+                        }
+                    }}
+                />
             </View>
         </View>
     );

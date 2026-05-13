@@ -1,27 +1,26 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Rating } from '@/components/ui/Rating';
-import type { Activity, Review } from '@/types';
+import type { ReviewDto } from '@/types/dto';
 import type { Theme } from '@/themes/theme';
 import { useTheme } from '@/themes/useTheme';
 
 type ReviewCardProps = {
-  review: Review;
-  activity: Activity | null;
+  review: ReviewDto;
+  activityTitle?: string | null;
 };
 
-export function ReviewCard({ review, activity }: ReviewCardProps) {
+export function ReviewCard({ review, activityTitle }: ReviewCardProps) {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const reviewText = review.text.trim();
-  const activityTitle = activity?.title ?? 'Активность';
 
   return (
     <View style={[styles.card, { backgroundColor: theme.colors.surfaceVariant }]}>
       <View style={styles.header}>
         <View style={styles.headerMain}>
           <Text numberOfLines={2} style={{ color: theme.colors.text, ...theme.typography.bodyBold }}>
-            {activityTitle}
+            {activityTitle ?? 'Активность'}
           </Text>
           <Text style={{ color: theme.colors.textSecondary, ...theme.typography.caption }}>
             от {review.fromUserName}
@@ -33,7 +32,7 @@ export function ReviewCard({ review, activity }: ReviewCardProps) {
             size={theme.spacing.iconSizeXSmall}
             variant="compact"
             showValue={false}
-            style={{height: theme.typography.bodyBold.lineHeight}}
+            style={{ height: theme.typography.bodyBold.lineHeight }}
           />
           <Text style={[styles.date, { color: theme.colors.textTertiary, ...theme.typography.caption }]}>
             {new Date(review.date).toLocaleDateString('ru-RU')}

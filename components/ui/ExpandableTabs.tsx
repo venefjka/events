@@ -74,18 +74,15 @@ export function ExpandableTabBar<TId extends ExpandableTabId>({
   labelFontWeight = '600',
 }: Props<TId>) {
   const theme = useTheme();
-
-  if (!colors) {
-    colors = {
-      activeBg: theme.colors.primary,
-      inactiveBg: theme.colors.surfaceVariant,
-      activeBorder: theme.colors.primary,
-      inactiveBorder: 'transparent',
-      activeIcon: theme.colors.textInverse,
-      inactiveIcon: theme.colors.textSecondary,
-      activeText: theme.colors.textInverse,
-    }
-  }
+  const resolvedColors = colors ?? {
+    activeBg: theme.colors.primary,
+    inactiveBg: theme.colors.surfaceVariant,
+    activeBorder: theme.colors.primary,
+    inactiveBorder: 'transparent',
+    activeIcon: theme.colors.textInverse,
+    inactiveIcon: theme.colors.textSecondary,
+    activeText: theme.colors.textInverse,
+  };
   const [containerWidth, setContainerWidth] = useState(0);
 
   const widthsRef = useRef<Record<string, Animated.Value>>({});
@@ -157,9 +154,9 @@ export function ExpandableTabBar<TId extends ExpandableTabId>({
           const isActive = it.id === activeId;
           const widthAnim = widthsRef.current[String(it.id)] ?? new Animated.Value(0);
 
-          const bg = isActive ? colors.activeBg : colors.inactiveBg;
-          const borderColor = isActive ? colors.activeBorder : colors.inactiveBorder;
-          const iconColor = isActive ? colors.activeIcon : colors.inactiveIcon;
+          const bg = isActive ? resolvedColors.activeBg : resolvedColors.inactiveBg;
+          const borderColor = isActive ? resolvedColors.activeBorder : resolvedColors.inactiveBorder;
+          const iconColor = isActive ? resolvedColors.activeIcon : resolvedColors.inactiveIcon;
 
           return (
             <TouchableOpacity key={String(it.id)} activeOpacity={0.85} onPress={() => onChange(it.id)}>
@@ -192,7 +189,7 @@ export function ExpandableTabBar<TId extends ExpandableTabId>({
                         labelTextStyle,
                         {
                           fontWeight: labelFontWeight,
-                          color: colors.activeText,
+                          color: resolvedColors.activeText,
                         },
                       ]}
                     >

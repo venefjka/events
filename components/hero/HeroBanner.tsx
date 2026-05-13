@@ -1,6 +1,7 @@
 import React, { ReactNode } from 'react';
-import { ImageBackground, StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { StyleSheet, TouchableOpacity, View, ViewStyle } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { CachedImage } from '@/components/ui/CachedImage';
 import { useTheme } from '@/themes/useTheme';
 import type { Theme } from '@/themes/theme';
 
@@ -55,9 +56,10 @@ export function HeroBanner({
   return (
     <View>
       <TouchableOpacity activeOpacity={0.96} disabled={!onPress} onPress={onPress}>
-        <ImageBackground source={{ uri: photoUri }} resizeMode="cover" style={styles.image}>
+        <View style={styles.image}>
+          <CachedImage uri={photoUri} style={StyleSheet.absoluteFill} />
           {content}
-        </ImageBackground>
+        </View>
       </TouchableOpacity>
     </View>
   );
@@ -68,6 +70,7 @@ const createStyles = (theme: Theme, minHeight: number, fallbackMinHeight: number
     image: {
       minHeight,
       width: '100%',
+      overflow: 'hidden',
     },
     fallback: {
       minHeight: fallbackMinHeight,

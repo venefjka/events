@@ -10,11 +10,78 @@ export const isValidEmail = (email: string): boolean => {
   return emailRegex.test(email.trim());
 };
 
+const COMMON_PASSWORDS = new Set([
+  'password',
+  'password1',
+  'password123',
+  'qwerty',
+  'qwerty123',
+  '12345678',
+  '123456789',
+  '1234567890',
+  '11111111',
+  '00000000',
+  'admin123',
+  'letmein',
+  'welcome',
+]);
+
+type PasswordValidationOptions = {
+  email?: string;
+  name?: string;
+  required?: boolean;
+};
+
+const normalizePasswordPart = (value: string) => value.toLowerCase().replace(/[^a-zа-яё0-9]/gi, '');
+
+const getSimilarity = (a: string, b: string) => {
+  if (!a || !b) return 0;
+
+  const rows = Array.from({ length: a.length + 1 }, () => Array(b.length + 1).fill(0));
+  let longest = 0;
+
+  for (let i = 1; i <= a.length; i += 1) {
+    for (let j = 1; j <= b.length; j += 1) {
+      if (a[i - 1] === b[j - 1]) {
+        rows[i][j] = rows[i - 1][j - 1] + 1;
+        longest = Math.max(longest, rows[i][j]);
+      }
+    }
+  }
+
+  return (2 * longest) / (a.length + b.length);
+};
+
+const isPasswordTooSimilarToUserData = (password: string, options?: PasswordValidationOptions) => {
+  const normalizedPassword = normalizePasswordPart(password);
+  const userParts = [
+    options?.email?.split('@')[0],
+    options?.email,
+    ...(options?.name?.split(/\s+/) ?? []),
+  ]
+    .map((part) => normalizePasswordPart(part ?? ''))
+    .filter((part) => part.length >= 3);
+
+  return userParts.some((part) => (
+    normalizedPassword.includes(part) ||
+    part.includes(normalizedPassword) ||
+    getSimilarity(normalizedPassword, part) >= 0.7
+  ));
+};
+
 /**
- * Валидирует пароль (минимум 6 символов)
+ * Валидирует пароль
  */
-export const isValidPassword = (password: string): boolean => {
-  return password.trim().length >= 6;
+export const isValidPassword = (password: string, options?: PasswordValidationOptions): boolean => {
+  const trimmedPassword = password.trim();
+
+  return Boolean(
+    trimmedPassword &&
+    trimmedPassword.length >= 8 &&
+    !/^\d+$/.test(trimmedPassword) &&
+    !COMMON_PASSWORDS.has(trimmedPassword.toLowerCase()) &&
+    !isPasswordTooSimilarToUserData(trimmedPassword, options)
+  );
 };
 
 /**
@@ -23,6 +90,11 @@ export const isValidPassword = (password: string): boolean => {
 export const isValidAge = (age: number | string): boolean => {
   const ageNum = typeof age === 'string' ? parseInt(age, 10) : age;
   return !isNaN(ageNum) && ageNum >= 18 && ageNum <= 120;
+};
+
+export const toIsoBirthDate = (value: string) => {
+  const [, day, month, year] = value.trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/) ?? [];
+  return `${year}-${month}-${day}`;
 };
 
 const parseBirthDate = (birthDate: string): Date | null => {
@@ -130,39 +202,10 @@ export const getAgeFromBirthDate = (birthDate: string): number | null => {
 };
 
 /**
- * Валидирует дату рождения (ДД.ММ.ГГГГ) и возраст
- */
-export const isValidBirthDate = (birthDate: string): boolean => {
-  const date = parseBirthDate(birthDate);
-
-  if (!date) {
-    return false;
-  }
-
-  const age = getAgeFromDate(date);
-  return age >= 18 && age <= 120;
-};
-
-/**
  * Валидирует имя (не пустое, минимум 2 символа)
  */
 export const isValidName = (name: string): boolean => {
   return name.trim().length >= 2;
-};
-
-/**
- * Валидирует цену (неотрицательное число)
- */
-export const isValidPrice = (price: number | string): boolean => {
-  const priceNum = typeof price === 'string' ? parseFloat(price) : price;
-  return !isNaN(priceNum) && priceNum >= 0;
-};
-
-/**
- * Валидирует количество участников
- */
-export const isValidParticipantsCount = (count: number, min: number = 1, max: number = 100): boolean => {
-  return count >= min && count <= max;
 };
 
 /**
@@ -181,12 +224,26 @@ export const getEmailError = (email: string): string | null => {
 /**
  * Получает сообщение об ошибке для пароля
  */
-export const getPasswordError = (password: string): string | null => {
-  if (!password.trim()) {
+export const getPasswordError = (password: string, options?: PasswordValidationOptions): string | null => {
+  const trimmedPassword = password.trim();
+
+  if (!trimmedPassword) {
+    if (options?.required === false) {
+      return null;
+    }
     return 'Пароль обязателен';
   }
-  if (!isValidPassword(password)) {
-    return 'Пароль должен содержать минимум 6 символов';
+  if (trimmedPassword.length < 8) {
+    return 'Пароль должен содержать минимум 8 символов';
+  }
+  if (/^\d+$/.test(trimmedPassword)) {
+    return 'Пароль не может состоять только из цифр';
+  }
+  if (COMMON_PASSWORDS.has(trimmedPassword.toLowerCase())) {
+    return 'Пароль слишком распространенный';
+  }
+  if (isPasswordTooSimilarToUserData(trimmedPassword, options)) {
+    return 'Пароль слишком похож на email или имя';
   }
   return null;
 };
@@ -227,20 +284,6 @@ export const getBirthDateError = (birthDate: string): string | null => {
     return 'Укажите корректную дату рождения';
   }
 
-  return null;
-};
-
-/**
- * Получает сообщение об ошибке для возраста
- */
-export const getAgeError = (age: number | string): string | null => {
-  const ageNum = typeof age === 'string' ? parseInt(age, 10) : age;
-  if (isNaN(ageNum)) {
-    return 'Возраст должен быть числом';
-  }
-  if (!isValidAge(ageNum)) {
-    return 'Возраст должен быть от 18 до 120 лет';
-  }
   return null;
 };
 
@@ -393,6 +436,3 @@ export const getEventDateTimeError = (dateValue: string, startTime: string): str
   }
   return null;
 };
-
-export const getScheduleDateTime = (dateValue: string, timeValue: string): Date | null =>
-  buildDateTime(dateValue, timeValue);

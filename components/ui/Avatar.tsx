@@ -1,11 +1,14 @@
 import React from 'react';
-import { View, Text, StyleSheet, ViewStyle, Image, StyleProp } from 'react-native';
+import { View, Text, StyleSheet, ViewStyle, StyleProp } from 'react-native';
+import { CachedImage } from '@/components/ui/CachedImage';
+import GhostAvatar from '@/assets/svg-icons/icons';
 import { useTheme } from '../../themes/useTheme';
 
 export interface AvatarProps {
     name: string;
     size?: 'xs' | 'small' | 'medium' | 'large';
     imageUrl?: string;
+    isDeleted?: boolean;
     style?: StyleProp<ViewStyle>;
 }
 
@@ -13,6 +16,7 @@ export const Avatar: React.FC<AvatarProps> = ({
     name,
     size = 'medium',
     imageUrl,
+    isDeleted = false,
     style,
 }) => {
     const theme = useTheme();
@@ -50,9 +54,15 @@ export const Avatar: React.FC<AvatarProps> = ({
                 style,
             ]}
         >
-            {imageUrl ? (
-                <Image
-                    source={{ uri: imageUrl }}
+            {isDeleted ? (
+                <GhostAvatar
+                    size={avatarSize}
+                    color={theme.colors.surface}
+                    background={theme.colors.text}
+                />
+            ) : imageUrl ? (
+                <CachedImage
+                    uri={imageUrl}
                     style={[
                         styles.image,
                         {
@@ -86,9 +96,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         overflow: 'hidden',
     },
-    image: {
-        resizeMode: 'cover',
-    },
+    image: {},
     text: {
         textAlign: 'center',
     },

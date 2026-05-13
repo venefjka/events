@@ -41,9 +41,11 @@ export const MapPin: React.FC<MapPinProps> = ({
   const anchorY = apexY / pinHeight;
   const label = typeof badgeCount === 'number' && badgeCount > 0 ? (badgeCount > 99 ? '99+' : String(badgeCount)) : undefined;
   const showClusterLabel = isCluster || (typeof badgeCount === 'number' && badgeCount > 1);
+  const markerThemeKey = theme.isDark ? 'dark' : 'light';
 
   return (
     <Marker
+      key={`${markerThemeKey}-${category.id}-${badgeCount ?? 0}-${isCluster ? 'cluster' : 'single'}`}
       coordinate={coordinate}
       anchor={{ x: anchorX, y: anchorY }}
       onPress={onPress}

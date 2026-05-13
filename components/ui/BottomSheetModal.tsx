@@ -26,6 +26,7 @@ const BACKDROP_OPACITY = 0.08;
 export interface BottomSheetModalProps {
   visible: boolean;
   title?: string;
+  titleSecondary?: string;
   children: React.ReactNode;
   onClose: () => void;
   footer?: React.ReactNode;
@@ -35,6 +36,7 @@ export interface BottomSheetModalProps {
 export function BottomSheetModal({
   visible,
   title,
+  titleSecondary,
   children,
   onClose,
   footer,
@@ -218,17 +220,31 @@ export function BottomSheetModal({
               bounces={false}
               alwaysBounceVertical={false}
             >
-              {title ? (
-                <Text
-                  style={{
-                    color: theme.colors.text,
-                    ...theme.typography.h3,
-                    marginBottom: theme.spacing.lg,
-                  }}
-                >
-                  {title}
-                </Text>
-              ) : null}
+              <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+                {title && (
+                  <Text
+                    style={{
+                      color: theme.colors.text,
+                      ...theme.typography.h3,
+                      marginBottom: theme.spacing.lg,
+                    }}
+                  >
+                    {title}
+                  </Text>
+                )}
+                {titleSecondary && (
+                  <Text
+                    style={{
+                      ...theme.typography.bodyLarge,
+                      color: theme.colors.textTertiary,
+                      marginBottom: theme.spacing.lg,
+                      marginLeft: theme.spacing.sm,
+                    }}
+                  >
+                    {titleSecondary}
+                  </Text>
+                )}
+              </View>
               {children}
             </KeyboardAwareScrollView>
 

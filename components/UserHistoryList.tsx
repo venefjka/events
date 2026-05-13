@@ -5,28 +5,33 @@ import {
   Ban,
   CalendarPlus2,
   CheckCircle2,
-  LogOut,
   Star,
   UserPlus,
   XCircle,
 } from 'lucide-react-native';
 import { ActivityCard } from '@/components/cards/ActivityCard';
 import { Rating } from '@/components/ui/Rating';
-import type { UserActivityFeedItem } from '@/utils/userActivityFeed';
-import type { UserActivityFeedEventType } from '@/types';
+import type { Gender, HistoryEventDto, HistoryEventType } from '@/types';
 import { useTheme } from '@/themes/useTheme';
 
-interface UserActivityFeedListProps {
-  items: UserActivityFeedItem[];
+interface UserHistoryListProps {
+  items: HistoryEventDto[];
+  userGender?: Gender;
   style?: ViewStyle;
 }
 
-export function UserActivityFeedList({ items, style }: UserActivityFeedListProps) {
+export function UserHistoryList({ items, userGender = 'notgiven', style }: UserHistoryListProps) {
   const theme = useTheme();
 
-  const renderTypeIcon = (type: UserActivityFeedEventType) => {
+  const gendered = (male: string, female: string, neutral: string) => {
+    if (userGender === 'male') return male;
+    if (userGender === 'female') return female;
+    return neutral;
+  };
+
+  const renderTypeIcon = (type: HistoryEventType) => {
     switch (type) {
-      case 'created':
+      case 'organized':
         return <CalendarPlus2 size={theme.spacing.iconSizeMedium} color={theme.colors.textSecondary} />;
       case 'attended':
         return <CheckCircle2 size={theme.spacing.iconSizeMedium} color={theme.colors.ratingExcellent} />;
@@ -35,46 +40,40 @@ export function UserActivityFeedList({ items, style }: UserActivityFeedListProps
       case 'cancelled':
         return <Ban size={theme.spacing.iconSizeMedium} color={theme.colors.ratingPoor} />;
       case 'joined':
-        return <UserPlus size={theme.spacing.iconSizeMedium} color={theme.colors.info} />;
-      case 'leaved':
-        return <LogOut size={theme.spacing.iconSizeMedium} color={theme.colors.ratingFair} />;
+        return <UserPlus size={theme.spacing.iconSizeMedium} color={theme.colors.ratingFair} />;
       case 'missed':
         return <XCircle size={theme.spacing.iconSizeMedium} color={theme.colors.ratingPoor} />;
     }
   };
 
-  const renderTypeLabel = (type: UserActivityFeedEventType) => {
+  const renderGenderedTypeLabel = (type: HistoryEventType) => {
     switch (type) {
-      case 'created':
-        return 'Создал событие';
+      case 'organized':
+        return `${gendered('Организовал', 'Организовала', 'Организовал(а)')} событие`;
       case 'attended':
-        return 'Посетил событие';
+        return `${gendered('Посетил', 'Посетила', 'Посетил(а)')} событие`;
       case 'rated':
-        return 'Оценил событие';
+        return `${gendered('Оценил', 'Оценила', 'Оценил(а)')} событие`;
       case 'cancelled':
-        return 'Отменил событие';
+        return `${gendered('Отменил', 'Отменила', 'Отменил(а)')} событие`;
       case 'joined':
-        return 'Присоединился к событию';
-      case 'leaved':
-        return 'Отменил участие';
+        return `${gendered('Присоединился', 'Присоединилась', 'Присоединился(-ась)')} к событию`;
       case 'missed':
-        return 'Пропустил событие';
+        return `${gendered('Пропустил', 'Пропустила', 'Пропустил(а)')} событие`;
     }
   };
 
   return (
     <View style={styles.list}>
       {items.map((item) => (
-        <View key={item.id} style={[styles.entry, style]}>
+        <View key={`${item.type}-${item.occurredAt}-${item.activity.id}`} style={[styles.entry, style]}>
           <View style={styles.metaRow}>
-            <View style={styles.typeIconBox}>
-              {renderTypeIcon(item.type)}
-            </View>
+            <View style={styles.typeIconBox}>{renderTypeIcon(item.type)}</View>
             <Text style={{ color: theme.colors.textSecondary, ...theme.typography.caption }}>
-              {renderTypeLabel(item.type)}
+              {renderGenderedTypeLabel(item.type)}
             </Text>
             <Text style={[styles.date, { color: theme.colors.textTertiary, ...theme.typography.captionSmall }]}>
-              {new Date(item.timestamp).toLocaleString('ru-RU', {
+              {new Date(item.occurredAt).toLocaleString('ru-RU', {
                 day: 'numeric',
                 month: 'short',
                 hour: '2-digit',
@@ -83,44 +82,32 @@ export function UserActivityFeedList({ items, style }: UserActivityFeedListProps
             </Text>
           </View>
 
-          {item.type === 'rated' && (typeof item.ratingValue === 'number' || item.subtitle) ? (
+          {item.type === 'rated' ? (
             <View style={styles.ratingRow}>
-              {typeof item.ratingValue === 'number' ? (
+              {item.rating ? (
                 <Rating
-                  rating={item.ratingValue}
+                  rating={item.rating}
                   size={12}
                   variant="compact"
                   style={styles.rating}
                   textStyle={{ ...theme.typography.captionSmall, color: theme.colors.text }}
                 />
               ) : null}
-              {item.subtitle ? (
+              {item.ratingComment ? (
                 <Text style={[styles.subtitle, { color: theme.colors.textSecondary, ...theme.typography.caption }]}>
-                  {item.subtitle}
+                  {item.ratingComment}
                 </Text>
               ) : null}
             </View>
-          ) : item.subtitle ? (
-            <Text style={[styles.subtitle, { color: theme.colors.textSecondary, ...theme.typography.caption }]}>
-              {item.subtitle}
-            </Text>
           ) : null}
 
-          {item.activity ? (
-            <ActivityCard
-              activity={item.activity}
-              mode="list"
-              variant="compact"
-              showCTA={false}
-              onPress={() => router.push(`/activity/${item.activity!.id}`)}
-            />
-          ) : (
-            <View style={[styles.fallbackCard, { backgroundColor: theme.colors.surface, marginBottom: theme.spacing.md }]}>
-              <Text style={{ color: theme.colors.text, ...theme.typography.bodyBold }}>
-                {item.title}
-              </Text>
-            </View>
-          )}
+          <ActivityCard
+            activity={item.activity}
+            mode="list"
+            variant="compact"
+            showCTA={false}
+            onPress={() => router.push(`/activity/${item.activity.id}`)}
+          />
         </View>
       ))}
     </View>
@@ -128,11 +115,10 @@ export function UserActivityFeedList({ items, style }: UserActivityFeedListProps
 }
 
 const styles = StyleSheet.create({
-  list: {
-  },
+  list: {},
   entry: {
     gap: 8,
-    marginTop: 12
+    marginTop: 12,
   },
   metaRow: {
     flexDirection: 'row',
@@ -160,9 +146,5 @@ const styles = StyleSheet.create({
   },
   subtitle: {
     flex: 1,
-  },
-  fallbackCard: {
-    borderRadius: 16,
-    padding: 12,
   },
 });

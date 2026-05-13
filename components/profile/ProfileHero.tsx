@@ -76,7 +76,7 @@ const createStyles = (theme: Theme) =>
       gap: theme.spacing.sm,
     },
     title: {
-      maxWidth: '92%',
+      maxWidth: '80%',
     },
     subtitleRow: {
       flexDirection: 'row',
