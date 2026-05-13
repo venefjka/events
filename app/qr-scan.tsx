@@ -4,38 +4,30 @@ import { Redirect, Stack, router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { BarcodeScanningResult, CameraView, useCameraPermissions } from 'expo-camera';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
-import { Camera, ScanLine } from 'lucide-react-native';
-import { qrApi } from '@/api/qr';
-import { useActivities } from '@/contexts/ActivitiesContext';
-import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
+import { ScanLine } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQrTokens } from '@/contexts/QrTokenContext';
-import { useUsers } from '@/contexts/UsersContext';
 import { Button } from '@/components/ui/Button';
 import { Header } from '@/components/ui/Header';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/themes/useTheme';
-import { extractQrPayload, extractQrToken } from '@/utils/qr';
+import { extractQrPayload, extractQrToken, getQrScanErrorMessage } from '@/utils/qr';
 import { formatActivityDate } from '@/utils/date';
+import { useActivityDetails } from '@/hooks/queries/useActivityDetails';
+import { useScanAttendance } from '@/hooks/mutations/useScanAttendance';
 
 export default function QRScanScreen() {
   const { activityId } = useLocalSearchParams<{ activityId?: string }>();
+  const resolvedActivityId = Array.isArray(activityId) ? activityId[0] : activityId;
   const { currentUser } = useAuth();
-  const { allActivities } = useActivities();
-  const { markAttendance, getParticipationStatus } = useActivityParticipation();
-  const { resolveToken } = useQrTokens();
-  const { users, getUserById } = useUsers();
+  const activityQuery = useActivityDetails(resolvedActivityId);
+  const scanAttendance = useScanAttendance();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [manualCode, setManualCode] = useState('');
   const [isScanLocked, setIsScanLocked] = useState(false);
   const lastProcessedCameraValueRef = useRef<string | null>(null);
   const [permission, requestPermission] = useCameraPermissions();
-
-  const resolvedActivityId = Array.isArray(activityId) ? activityId[0] : activityId;
-  const activity = resolvedActivityId
-    ? allActivities.find((item) => item.id === resolvedActivityId)
-    : null;
+  const activity = activityQuery.data ?? null;
 
   if (!currentUser) {
     router.back();
@@ -59,7 +51,7 @@ export default function QRScanScreen() {
     );
   };
 
-  const resolveScannedUserId = async (rawValue: string) => {
+  const resolveScannedToken = (rawValue: string) => {
     if (!activity) return null;
 
     const payload = extractQrPayload(rawValue);
@@ -70,68 +62,26 @@ export default function QRScanScreen() {
     const token = extractQrToken(rawValue);
     if (!token) return null;
 
-    const localResolvedUserId = await resolveToken(token, activity.id);
-    if (localResolvedUserId) return localResolvedUserId;
-
-    if (
-      payload?.activityId === activity.id &&
-      typeof payload.userId === 'string' &&
-      payload.userId.trim()
-    ) {
-      return payload.userId.trim();
-    }
-
-    try {
-      const response = await qrApi.resolveToken({ token });
-      return response.user.id;
-    } catch {
-      const legacyUser = users.find((user) => user.qrCode === token);
-      return legacyUser?.id ?? null;
-    }
+    return token;
   };
 
   const handleAttendance = async (rawValue: string) => {
     if (!activity) return;
 
-    const token = extractQrToken(rawValue);
-    const userId = await resolveScannedUserId(rawValue);
-    const participant = userId ? getUserById(userId) : null;
-    const status = userId ? getParticipationStatus(activity.id, userId) : null;
+    const token = resolveScannedToken(rawValue);
 
-    if (!userId) {
-      showScanAlert('Ошибка', 'Не удалось распознать код участника или QR относится к другому событию.');
+    if (!token) {
+      showScanAlert('Ошибка', 'Не удалось распознать QR или он относится к другому событию.');
       return;
     }
 
-    const isAlreadyAttended =
-      status === 'attended' || activity.attendedUsers.includes(userId);
-    const isRegisteredParticipant =
-      status === 'accepted' ||
-      isAlreadyAttended ||
-      (userId !== activity.organizer.id &&
-        activity.currentParticipants.some((user) => user.id === userId));
-
-    if (!isRegisteredParticipant) {
-      showScanAlert('Ошибка', 'Пользователь не зарегистрирован на это мероприятие.');
-      return;
+    try {
+      const response = await scanAttendance.mutateAsync({ activityId: activity.id, payload: { token } });
+      setManualCode('');
+      showScanAlert('Успешно', `Посещение отмечено для ${response.user.name}.`);
+    } catch (error) {
+      showScanAlert('Ошибка', getQrScanErrorMessage(error));
     }
-
-    if (isAlreadyAttended) {
-      showScanAlert('Уже отмечен', 'Посещение уже отмечено для этого участника.');
-      return;
-    }
-
-    if (token) {
-      try {
-        await qrApi.scanAttendance(activity.id, { token });
-      } catch {
-        // TODO(api): keep local fallback until backend flow is final.
-      }
-    }
-
-    await markAttendance(activity.id, userId);
-    setManualCode('');
-    showScanAlert('Успешно', `Посещение отмечено для ${participant?.name ?? userId}.`);
   };
 
   const handleBarcodeScanned = async ({ data }: BarcodeScanningResult) => {
@@ -157,16 +107,13 @@ export default function QRScanScreen() {
     }
   };
 
-  if (!resolvedActivityId || !activity || activity.organizer.id !== currentUser.id) {
+  if (!resolvedActivityId || (!activityQuery.isLoading && (!activity || activity.organizer.id !== currentUser.id))) {
     return <Redirect href="/qr?mode=organizer" />;
   }
 
   const cameraPermissionGranted = permission?.granted ?? false;
-  const attendeesCount = Math.max(
-    0,
-    activity.attendedUsers.filter((userId) => userId !== activity.organizer.id).length
-  );
-  const expectedAttendeesCount = Math.max(0, activity.currentParticipants.length - 1);
+  const attendeesCount = 0; // todo
+  const expectedAttendeesCount = Math.max(0, (activity?.participantsCount ?? 1) - 1);
 
   return (
     <>
@@ -193,10 +140,10 @@ export default function QRScanScreen() {
             <View style={styles.content}>
               <View style={styles.topMeta}>
                 <Text style={[styles.activityTitle, { color: theme.colors.text }]}>
-                  {activity.title}
+                  {activity?.title ?? ''}
                 </Text>
                 <Text style={[styles.activityMeta, { color: theme.colors.textSecondary }]}>
-                  {formatActivityDate(activity.startAt)}
+                  {activity ? formatActivityDate(activity.startAt, activity.timeZone) : ''}
                 </Text>
                 <Text style={[styles.activityMeta, { color: theme.colors.textSecondary }]}>
                   Отмечено участников: {attendeesCount}/{expectedAttendeesCount}
@@ -232,7 +179,7 @@ export default function QRScanScreen() {
                     Нужен доступ к камере, чтобы начать сканирование
                   </Text>
                   <Button
-                    title={'Запросить доступ'}
+                    title="Запросить доступ"
                     variant="primary"
                     size="small"
                     onPress={() => void requestPermission()}

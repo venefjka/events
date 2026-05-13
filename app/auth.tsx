@@ -1,53 +1,100 @@
-﻿import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
+  Alert,
   View,
   Text,
   StyleSheet,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Alert,
   TouchableOpacity,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Mail, Lock, Trash2, User, LogIn } from 'lucide-react-native';
-import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/themes/useTheme';
 import { Theme } from '@/themes/theme';
 import { Button } from '@/components/ui/Button';
 import { Divider } from '@/components/ui/Divider';
 import { FormField } from '@/components/forms/FormField';
 import { Avatar } from '@/components/ui/Avatar';
-import { RememberedUser, UserRecord } from '@/types';
 import { getEmailError, getPasswordError } from '@/utils/validation';
+import {
+  useLoginMutation,
+  useRememberedLoginMutation,
+  useRemoveRememberedUserMutation,
+} from '@/hooks/mutations/useAuthMutations';
+import { useAuth } from '@/contexts/AuthContext';
+import { authRepository } from '@/repositories/authRepository';
+import type { RememberedUserDto } from '@/types/dto';
+import { getFileUrl } from '@/utils/files';
 
 export default function AuthScreen() {
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-  const { localUsers, rememberedUsers, switchAccount, login, deleteAccount, isLoggingIn, loginError } = useAuth();
+  const loginMutation = useLoginMutation();
+  const rememberedLoginMutation = useRememberedLoginMutation();
+  const removeRememberedUserMutation = useRemoveRememberedUserMutation();
+  const { currentUser } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showErrors, setShowErrors] = useState(false);
   const [showLoginError, setShowLoginError] = useState(false);
-  const showAccountList = (rememberedUsers.length || localUsers.length) > 0;
+  const [rememberedUsers, setRememberedUsers] = useState<RememberedUserDto[]>([]);
+  const [selectedRememberedUserId, setSelectedRememberedUserId] = useState<string | null>(null);
+  const showAccountList = rememberedUsers.length > 0;
 
-  const rememberedList = rememberedUsers.length ? rememberedUsers : localUsers.map((user) => ({
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    avatar: user.avatar,
-  }));
+  const loadRememberedUsers = async () => {
+    setRememberedUsers(await authRepository.getRememberedUsers());
+  };
 
-  const handleSelectAccount = (user: UserRecord) => {
-    switchAccount(user);
+  useEffect(() => {
+    loadRememberedUsers();
+  }, []);
+
+  useEffect(() => {
+    if (currentUser) {
+      router.replace('/');
+    }
+  }, [currentUser]);
+
+  const handleSelectAccount = async (user: RememberedUserDto) => {
+    setSelectedRememberedUserId(user.id);
+    setShowLoginError(false);
+
+    try {
+      await rememberedLoginMutation.mutateAsync(user.id);
+    } catch {
+      await loadRememberedUsers();
+      setEmail(user.email);
+      Alert.alert('Требуется вход', 'Введите пароль для входа в этот аккаунт.');
+      setSelectedRememberedUserId(null);
+    }
+  };
+
+  const handleDeleteAccount = (account: RememberedUserDto) => {
+    Alert.alert(
+      'Скрыть аккаунт?',
+      `Скрыть ${account.name || account.email} с этого устройства?`,
+      [
+        { text: 'Отмена', style: 'cancel' },
+        {
+          text: 'Скрыть',
+          style: 'destructive',
+          onPress: async () => {
+            await removeRememberedUserMutation.mutateAsync(account.id);
+            await loadRememberedUsers();
+          },
+        },
+      ],
+    );
   };
 
   const handleCreateNewAccount = () => {
     router.push('/register');
   };
 
-  const handleEmailLogin = () => {
+  const handleEmailLogin = async () => {
     setShowErrors(true);
     const emailError = getEmailError(email);
     const passwordError = getPasswordError(password);
@@ -56,20 +103,17 @@ export default function AuthScreen() {
       return;
     }
 
-    setShowLoginError(true);
-    login(email.toLowerCase().trim(), password);
+    try {
+      setShowLoginError(true);
+      await loginMutation.mutateAsync({ email: email.toLowerCase().trim(), password });
+    } catch {
+      // Error text is exposed below from the auth mutation.
+    }
   };
 
-  const handleDeleteAccount = (account: RememberedUser) => {
-    Alert.alert(
-      'Скрыть аккаунт?',
-      `Скрыть ${account.name || account.email} с этого устройства?`,
-      [
-        { text: 'Отмена', style: 'cancel' },
-        { text: 'Скрыть', style: 'destructive', onPress: () => deleteAccount(account.id) },
-      ],
-    );
-  };
+  const isEmailLoginPending = loginMutation.isPending || Boolean(currentUser);
+  const isRememberedLoginPending = rememberedLoginMutation.isPending || Boolean(currentUser);
+  const isAuthActionPending = isEmailLoginPending || isRememberedLoginPending;
 
   const renderOrDivider = (text: string) => (
     <View style={styles.orRow}>
@@ -118,27 +162,30 @@ export default function AuthScreen() {
                     </View>
                   </View>
                 </View>
-                {rememberedList.map((user) => (
+                {rememberedUsers.map((user) => (
                   <View key={user.id} style={styles.accountItem}>
                     <TouchableOpacity
                       style={styles.accountSelect}
-                      onPress={() => {
-                        const localUser = localUsers.find((item) => item.id === user.id);
-                        if (!localUser) {
-                          Alert.alert('Требуется вход', 'Введите пароль для входа в этот аккаунт.');
-                          return;
-                        }
-                        handleSelectAccount(localUser);
-                      }}
-                      disabled={isLoggingIn}
+                      onPress={() => handleSelectAccount(user)}
+                      disabled={isAuthActionPending}
                       activeOpacity={0.8}
                     >
                       <View style={styles.avatarWrap}>
-                        <Avatar name={user.name} size="large" imageUrl={user.avatar} />
+                        <View style={selectedRememberedUserId === user.id && styles.avatarSelected}>
+                          <Avatar name={user.name} size="large" imageUrl={getFileUrl(user.avatarFileId)} />
+                        </View>
+                        {selectedRememberedUserId === user.id && (
+                          <View style={styles.avatarLoadingOverlay} pointerEvents="none">
+                            <Text style={styles.avatarLoadingText}>Вход...</Text>
+                          </View>
+                        )}
                         <TouchableOpacity
                           style={styles.accountDelete}
                           onPress={() => handleDeleteAccount(user)}
-                          disabled={isLoggingIn}
+                          disabled={
+                            isAuthActionPending ||
+                            removeRememberedUserMutation.isPending
+                          }
                           activeOpacity={0.7}
                         >
                           <Trash2 size={theme.spacing.avatarSizeLarge / 5} color={theme.colors.error} />
@@ -192,12 +239,14 @@ export default function AuthScreen() {
               <Button
                 title="Войти"
                 onPress={handleEmailLogin}
-                disabled={!email.trim() || !password.trim()}
-                loading={isLoggingIn}
+                disabled={!email.trim() || !password.trim() || isEmailLoginPending}
+                loading={isEmailLoginPending}
                 fullWidth
               />
 
-              {!!loginError && showLoginError && <Text style={styles.errorText}>{loginError}</Text>}
+              {!!loginMutation.error && showLoginError && (
+                <Text style={styles.errorText}>{loginMutation.error.message}</Text>
+              )}
 
               {renderOrDivider('или')}
 
@@ -244,7 +293,7 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       paddingBottom: theme.spacing.xl,
       justifyContent: 'center',
-      width: '100%'
+      width: '100%',
     },
     accountItem: {
       alignItems: 'center',
@@ -261,6 +310,19 @@ const createStyles = (theme: Theme) =>
     },
     avatarWrap: {
       position: 'relative',
+    },
+    avatarSelected: {
+      opacity: 0.10,
+    },
+    avatarLoadingOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    avatarLoadingText: {
+      ...theme.typography.captionSmall,
+      color: theme.colors.text,
+      fontWeight: '700',
     },
     accountName: {
       ...theme.typography.captionSmall,
@@ -280,8 +342,11 @@ const createStyles = (theme: Theme) =>
       alignItems: 'center',
       justifyContent: 'center',
       backgroundColor: theme.colors.surface,
-      borderWidth: theme.spacing.borderWidth / 2,
-      borderColor: theme.colors.border,
+      shadowColor: theme.colors.text,
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 4,
+      elevation: 3,
     },
     orRow: {
       flexDirection: 'row',
@@ -296,5 +361,3 @@ const createStyles = (theme: Theme) =>
       color: theme.colors.textTertiary,
     },
   });
-
-

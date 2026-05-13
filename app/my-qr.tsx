@@ -1,52 +1,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Redirect, Stack, router, useLocalSearchParams } from 'expo-router';
-import { useQuery } from '@tanstack/react-query';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RefreshCcw } from 'lucide-react-native';
 import * as Clipboard from 'expo-clipboard';
 import QRCode from 'react-native-qrcode-svg';
-import { useActivities } from '@/contexts/ActivitiesContext';
-import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useQrTokens } from '@/contexts/QrTokenContext';
 import { Header } from '@/components/ui/Header';
 import { useTheme } from '@/themes/useTheme';
 import { createQrPayload } from '@/utils/qr';
+import { useActivityDetails } from '@/hooks/queries/useActivityDetails';
+import { useMyQrToken } from '@/hooks/queries/useMyQrToken';
+import { useRefreshQrToken } from '@/hooks/mutations/useRefreshQrToken';
 
 export default function MyQRScreen() {
   const { activityId } = useLocalSearchParams<{ activityId?: string }>();
   const resolvedActivityId = Array.isArray(activityId) ? activityId[0] : activityId;
   const { currentUser } = useAuth();
-  const { allActivities } = useActivities();
-  const { getUserActivityIdsByStatus } = useActivityParticipation();
-  const { getOrCreateToken, issueToken, tokenTtlMs } = useQrTokens();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
   const [isCodeCopied, setIsCodeCopied] = useState(false);
-
-  const availableActivityIds = useMemo(() => {
-    if (!currentUser) return new Set<string>();
-    return new Set(getUserActivityIdsByStatus(currentUser.id, ['accepted']));
-  }, [currentUser, getUserActivityIdsByStatus]);
-
-  const activity = resolvedActivityId
-    ? allActivities.find((item) => item.id === resolvedActivityId)
-    : null;
-
-  const tokenQuery = useQuery({
-    queryKey: ['qrToken', currentUser?.id, resolvedActivityId],
-    queryFn: async () => {
-      if (!currentUser || !resolvedActivityId) return '';
-      return getOrCreateToken(currentUser.id, resolvedActivityId);
-    },
-    enabled: Boolean(currentUser && resolvedActivityId && availableActivityIds.has(resolvedActivityId)),
-    staleTime: tokenTtlMs,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchInterval: Math.max(15000, Math.floor(tokenTtlMs * 0.8)),
-  });
+  const activityQuery = useActivityDetails(resolvedActivityId);
+  const tokenQuery = useMyQrToken(Boolean(currentUser && resolvedActivityId));
+  const refreshQrToken = useRefreshQrToken();
+  const activity = activityQuery.data ?? null;
 
   useEffect(() => {
     if (!isCodeCopied) return;
@@ -63,13 +40,13 @@ export default function MyQRScreen() {
     return null;
   }
 
-  const token = tokenQuery.data ?? '';
+  const token = tokenQuery.data?.token ?? '';
   const qrValue =
     token && resolvedActivityId ? createQrPayload(token, currentUser.id, resolvedActivityId) : '';
 
   const handleRefresh = async () => {
-    if (!resolvedActivityId || !availableActivityIds.has(resolvedActivityId)) return;
-    await issueToken(currentUser.id, resolvedActivityId);
+    if (!resolvedActivityId) return;
+    await refreshQrToken.mutateAsync();
     await tokenQuery.refetch();
     setIsCodeCopied(false);
   };
@@ -80,7 +57,7 @@ export default function MyQRScreen() {
     setIsCodeCopied(true);
   };
 
-  if (!resolvedActivityId || !activity || !availableActivityIds.has(resolvedActivityId)) {
+  if (!resolvedActivityId || (!activityQuery.isLoading && !activity)) {
     return <Redirect href="/qr?mode=participant" />;
   }
 
@@ -125,7 +102,7 @@ export default function MyQRScreen() {
                   ) : null}
                 </View>
                 <Text style={[styles.activityTitle, { color: theme.colors.text }]}>
-                  {activity.title}
+                  {activity?.title ?? ''}
                 </Text>
                 <Text style={[styles.qrHint, { color: theme.colors.textSecondary }]}>
                   Данный QR-код будет действителен в течение одной минуты

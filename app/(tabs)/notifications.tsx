@@ -2,10 +2,10 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useNotifications } from '@/contexts/NotificationsContext';
-import { useActivities } from '@/contexts/ActivitiesContext';
-import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/hooks/queries/useNotifications';
+import { useApproveJoinRequest } from '@/hooks/mutations/useApproveJoinRequest';
+import { useRejectJoinRequest } from '@/hooks/mutations/useRejectJoinRequest';
+import { useMarkNotificationRead } from '@/hooks/mutations/useMarkNotificationRead';
 import { useTheme } from '@/themes/useTheme';
 import { createCommonStyles } from '@/styles/common';
 import { Header } from '@/components/ui/Header';
@@ -13,14 +13,14 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { Bell, BellRing, CheckCircle, Clock, Megaphone, Star, UserPlus, XCircle } from 'lucide-react-native';
 
 export default function NotificationsScreen() {
-  const { currentUser } = useAuth();
-  const { notifications, markAsRead } = useNotifications();
-  const { allActivities } = useActivities();
-  const { approveJoinRequest, rejectJoinRequest } = useActivityParticipation();
+  const notificationsQuery = useNotifications();
+  const approveJoinRequest = useApproveJoinRequest();
+  const rejectJoinRequest = useRejectJoinRequest();
+  const markAsRead = useMarkNotificationRead();
   const theme = useTheme();
   const commonStyles = createCommonStyles(theme);
 
-  const userNotifications = notifications.filter(n => n.userId === currentUser?.id);
+  const notifications = notificationsQuery.data?.items ?? [];
 
   const getNotificationIcon = (type: string) => {
     const iconProps = { size: 20, color: theme.colors.text };
@@ -46,90 +46,102 @@ export default function NotificationsScreen() {
     <SafeAreaView style={[commonStyles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
       <Header title="Уведомления" />
 
-      <ScrollView style={[styles.notificationsList, { backgroundColor: theme.colors.surface }]} showsVerticalScrollIndicator={false}>
-        {userNotifications.length === 0 && (
-          <EmptyState
-            icon={<Bell size={theme.spacing.iconSizeXXLarge} color={theme.colors.textSecondary} />}
-            title="Нет уведомлений"
-            description="Здесь будут отображаться важные обновления"
-          />
-        )}
-
-        {userNotifications.map((notification) => {
-          const activity = notification.activityId
-            ? allActivities.find((a) => a.id === notification.activityId)
-            : null;
-
-          return (
-            <View
-              key={notification.id}
-              style={[styles.notificationItem, styles.notificationUnread]}
-            >
-              <TouchableOpacity
-                style={styles.notificationMain}
-                onPress={() => {
-                  if (notification.activityId) {
-                    router.push(`/activity/${notification.activityId}`);
-                  }
-                }}
+      <View style={[styles.content, { backgroundColor: theme.colors.surface }]}>
+        {notifications.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <EmptyState
+              icon={<Bell size={theme.spacing.iconSizeXXLarge} color={theme.colors.textSecondary} />}
+              title="Нет уведомлений"
+              description="Здесь будут отображаться важные обновления"
+            />
+          </View>
+        ) : (
+          <ScrollView style={styles.notificationsList} showsVerticalScrollIndicator={false}>
+            {notifications.map((notification) => (
+              <View
+                key={notification.id}
+                style={[styles.notificationItem, styles.notificationUnread]}
               >
-                <View style={styles.notificationIcon}>
-                  {getNotificationIcon(notification.type)}
-                </View>
-                <View style={styles.notificationContent}>
-                  <Text style={styles.notificationTitle}>{notification.title}</Text>
-                  <Text style={styles.notificationMessage}>{notification.message}</Text>
-                  <Text style={styles.notificationTime}>
-                    {new Date(notification.timestamp).toLocaleString('ru', {
-                      day: 'numeric',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-
-              {notification.type === 'request' &&
-                notification.actionRequired &&
-                !notification.read &&
-                activity && (
-                  <View style={styles.notificationActions}>
-                    <TouchableOpacity
-                      style={styles.rejectButton}
-                      onPress={() => {
-                        if (notification.activityId && notification.requestUserId) {
-                          rejectJoinRequest(notification.activityId, notification.requestUserId);
-                          markAsRead(notification.id);
-                        }
-                      }}
-                    >
-                      <Text style={styles.rejectButtonText}>Отклонить</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={styles.approveButton}
-                      onPress={() => {
-                        if (notification.activityId && notification.requestUserId) {
-                          approveJoinRequest(notification.activityId, notification.requestUserId);
-                          markAsRead(notification.id);
-                        }
-                      }}
-                    >
-                      <Text style={styles.approveButtonText}>Принять</Text>
-                    </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.notificationMain}
+                  onPress={() => {
+                    if (notification.activityId) {
+                      router.push(`/activity/${notification.activityId}`);
+                    }
+                  }}
+                >
+                  <View style={styles.notificationIcon}>
+                    {getNotificationIcon(notification.type)}
                   </View>
-                )}
-            </View>
-          );
-        })}
-      </ScrollView>
+                  <View style={styles.notificationContent}>
+                    <Text style={styles.notificationTitle}>{notification.title}</Text>
+                    <Text style={styles.notificationMessage}>{notification.message}</Text>
+                    <Text style={styles.notificationTime}>
+                      {new Date(notification.timestamp).toLocaleString('ru', {
+                        day: 'numeric',
+                        month: 'short',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {notification.type === 'request' &&
+                  notification.actionRequired &&
+                  !notification.read &&
+                  notification.activityId && (
+                    <View style={styles.notificationActions}>
+                      <TouchableOpacity
+                        style={styles.rejectButton}
+                        onPress={() => {
+                          if (notification.activityId && notification.requestUserId) {
+                            rejectJoinRequest.mutate({
+                              activityId: notification.activityId,
+                              userId: notification.requestUserId,
+                            });
+                            markAsRead.mutate(notification.id);
+                          }
+                        }}
+                      >
+                        <Text style={styles.rejectButtonText}>Отклонить</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={styles.approveButton}
+                        onPress={() => {
+                          if (notification.activityId && notification.requestUserId) {
+                            approveJoinRequest.mutate({
+                              activityId: notification.activityId,
+                              userId: notification.requestUserId,
+                            });
+                            markAsRead.mutate(notification.id);
+                          }
+                        }}
+                      >
+                        <Text style={styles.approveButtonText}>Принять</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+              </View>
+            ))}
+          </ScrollView>
+        )}
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  content: {
+    flex: 1,
+  },
   notificationsList: {
     flex: 1,
+  },
+  emptyWrap: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   notificationItem: {
     paddingHorizontal: 20,

@@ -2,15 +2,14 @@ import React, { useMemo } from 'react';
 import { FlatList, StyleSheet, Text, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Camera, QrCode, ScanEye, ScanFace, ShieldCheck, User } from 'lucide-react-native';
+import { Camera, QrCode, ScanEye, ScanFace } from 'lucide-react-native';
 import { ActivityCard } from '@/components/cards/ActivityCard';
 import { ExpandableTabBar } from '@/components/ui/ExpandableTabs';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
-import { useActivities } from '@/contexts/ActivitiesContext';
-import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/themes/useTheme';
+import { useMyActivitiesList } from '@/hooks/queries/useMyActivitiesList';
 
 type QrMode = 'participant' | 'organizer';
 
@@ -36,37 +35,32 @@ export default function QRHubScreen() {
   const resolvedModeParam = Array.isArray(mode) ? mode[0] : mode;
   const activeMode: QrMode = resolvedModeParam === 'organizer' ? 'organizer' : 'participant';
   const { currentUser } = useAuth();
-  const { allActivities } = useActivities();
-  const { getUserActivityIdsByStatus } = useActivityParticipation();
   const theme = useTheme();
   const styles = useMemo(() => createStyles(theme), [theme]);
-
-  const participantActivityIds = useMemo(() => {
-    if (!currentUser) return new Set<string>();
-    return new Set(getUserActivityIdsByStatus(currentUser.id, ['accepted']));
-  }, [currentUser, getUserActivityIdsByStatus]);
+  const participantActivitiesQuery = useMyActivitiesList({ tab: 'upcoming', limit: 50 }, activeMode === 'participant');
+  const organizerActivitiesQuery = useMyActivitiesList({ tab: 'future_created', limit: 50 }, activeMode === 'organizer');
 
   const participantActivities = useMemo(() => {
     const now = Date.now();
 
-    return allActivities.filter((item) => {
+    return (participantActivitiesQuery.data?.items ?? []).filter((item) => {
       const endAt = new Date(item.endAt || item.startAt).getTime();
       const isUpcomingOrOngoing = !Number.isNaN(endAt) && endAt >= now;
 
-      return item.status === 'active' && isUpcomingOrOngoing && participantActivityIds.has(item.id);
+      return item.status === 'active' && isUpcomingOrOngoing;
     });
-  }, [allActivities, participantActivityIds]);
+  }, [participantActivitiesQuery.data?.items]);
 
   const organizerActivities = useMemo(() => {
     const now = Date.now();
 
-    return allActivities.filter((item) => {
+    return (organizerActivitiesQuery.data?.items ?? []).filter((item) => {
       const endAt = new Date(item.endAt || item.startAt).getTime();
       const isUpcomingOrOngoing = !Number.isNaN(endAt) && endAt >= now;
 
-      return item.status === 'active' && isUpcomingOrOngoing && item.organizer.id === currentUser?.id;
+      return item.status === 'active' && isUpcomingOrOngoing;
     });
-  }, [allActivities, currentUser?.id]);
+  }, [organizerActivitiesQuery.data?.items]);
 
   const displayedActivities =
     activeMode === 'participant' ? participantActivities : organizerActivities;

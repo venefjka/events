@@ -1,7 +1,6 @@
 import React from 'react';
 import { Alert } from 'react-native';
 import { router } from 'expo-router';
-import { useAuth } from '@/contexts/AuthContext';
 import { MultiStepForm } from '@/components/forms/MultiStepForm';
 import { AccountStep } from '@/components/steps/user-info/AccountStep';
 import { PersonalDataStep } from '@/components/steps/user-info/PersonalDataStep';
@@ -12,32 +11,25 @@ import {
   getEmailError,
   getNameError,
   getPasswordError,
+  toIsoBirthDate,
 } from '@/utils/validation';
-import { defaultUserPrivacySettings } from '@/utils/user';
+import { useRegisterMutation } from '@/hooks/mutations/useAuthMutations';
 
 export default function RegisterScreen() {
-  const { register } = useAuth();
+  const registerMutation = useRegisterMutation();
 
   const handleSubmit = async (data: any) => {
-    const privacy = {
-      ...defaultUserPrivacySettings(),
-      showBirthDate: Boolean(data.birthDatePublic),
-    };
-
-    const newUser = {
-      name: data.name,
-      email: data.email,
-      password: data.password,
-      // avatar: `https://i.pravatar.cc/150?img=${Math.floor(Math.random() * 70)}`,
-      birthDate: data.birthDate,
-      cityPlace: data.cityPlace,
-      gender: data.gender ?? 'notgiven',
-      interests: data.interests || [],
-      privacy,
-    };
-
     try {
-      await register(newUser);
+      await registerMutation.mutateAsync({
+        name: data.name,
+        email: data.email,
+        password: data.password,
+        birthDate: toIsoBirthDate(data.birthDate),
+        city: data.cityPlace,
+        gender: data.gender ?? 'notgiven',
+        interests: data.interests || [],
+        showBirthDate: Boolean(data.birthDatePublic),
+      });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Не удалось завершить регистрацию';
       Alert.alert('Ошибка', message);
@@ -60,7 +52,10 @@ export default function RegisterScreen() {
       validation: (data: any) => {
         const errors: Record<string, string> = {};
         const emailError = getEmailError(data.email ?? '');
-        const passwordError = getPasswordError(data.password ?? '');
+        const passwordError = getPasswordError(data.password ?? '', {
+          email: data.email,
+          name: data.name,
+        });
         const confirmPasswordError = getConfirmPasswordError(data.password ?? '', data.confirmPassword ?? '');
 
         if (emailError) {

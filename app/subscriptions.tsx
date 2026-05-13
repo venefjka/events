@@ -2,20 +2,18 @@ import React, { useMemo } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Pin, Users } from 'lucide-react-native';
+import { Pin, UserMinus, Users } from 'lucide-react-native';
 import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Header } from '@/components/ui/Header';
 import { Rating } from '@/components/ui/Rating';
-import { useSubscriptions } from '@/contexts/SubscriptionsContext';
-import { useUsers } from '@/contexts/UsersContext';
+import { useSubscriptions } from '@/hooks/queries/useSubscriptions';
+import { useToggleSubscriptionPin } from '@/hooks/mutations/useToggleSubscriptionPin';
+import { useUnsubscribe } from '@/hooks/mutations/useUnsubscribe';
 import { createCommonStyles } from '@/styles/common';
 import { useTheme } from '@/themes/useTheme';
-import { Subscription, UserPublic } from '@/types';
-
-type SubscriptionListItem = Subscription & {
-  user: UserPublic;
-};
+import type { SubscriptionDto } from '@/types/dto';
+import { getFileUrl } from '@/utils/files';
 
 const getSubscriptionLabel = (count: number) => {
   const lastTwoDigits = count % 100;
@@ -37,23 +35,14 @@ const getSubscriptionLabel = (count: number) => {
 };
 
 export default function SubscriptionsScreen() {
-  const { subscriptions, togglePin, isLoading } = useSubscriptions();
-  const { getUserPublic } = useUsers();
+  const subscriptionsQuery = useSubscriptions();
+  const togglePinMutation = useToggleSubscriptionPin();
+  const unsubscribeMutation = useUnsubscribe();
   const theme = useTheme();
   const commonStyles = createCommonStyles(theme);
 
-  const sortedUsers = useMemo<SubscriptionListItem[]>(() => {
-    return subscriptions
-      .reduce<SubscriptionListItem[]>((items, subscription) => {
-        const user = getUserPublic(subscription.userId);
-
-        if (!user) {
-          return items;
-        }
-
-        items.push({ ...subscription, user });
-        return items;
-      }, [])
+  const sortedUsers = useMemo<SubscriptionDto[]>(() => {
+    return [...(subscriptionsQuery.data?.items ?? [])]
       .sort((left, right) => {
         if (left.isPinned !== right.isPinned) {
           return left.isPinned ? -1 : 1;
@@ -61,7 +50,7 @@ export default function SubscriptionsScreen() {
 
         return left.user.name.localeCompare(right.user.name, 'ru');
       });
-  }, [getUserPublic, subscriptions]);
+  }, [subscriptionsQuery.data?.items]);
 
   return (
     <>
@@ -70,7 +59,7 @@ export default function SubscriptionsScreen() {
       <SafeAreaView style={[commonStyles.container, { backgroundColor: theme.colors.background }]} edges={['top']}>
         <Header title="Подписки" showBackButton borderBottom={false} />
 
-        {isLoading ? (
+        {subscriptionsQuery.isLoading ? (
           <View style={commonStyles.loadingContainer}>
             <ActivityIndicator size="large" color={theme.colors.primary} />
           </View>
@@ -107,7 +96,7 @@ export default function SubscriptionsScreen() {
             </View>
 
             <ScrollView
-              style={[commonStyles.content, { backgroundColor: theme.colors.background }]}
+              style={[commonStyles.content, { backgroundColor: theme.colors.surface }]}
               contentContainerStyle={styles.contentContainer}
               showsVerticalScrollIndicator={false}
             >
@@ -137,11 +126,17 @@ export default function SubscriptionsScreen() {
                       ]}
                     >
                       <TouchableOpacity
-                        style={styles.userMain}
-                        activeOpacity={0.8}
+                        style={[styles.userMain, item.user.isDeleted && styles.deletedUser]}
+                        activeOpacity={0.85}
+                        disabled={item.user.isDeleted}
                         onPress={() => router.push(`/user/${item.user.id}`)}
                       >
-                        <Avatar name={item.user.name} size="medium" imageUrl={item.user.avatar} />
+                        <Avatar
+                          name={item.user.name}
+                          size="medium"
+                          imageUrl={getFileUrl(item.user.avatarFileId)}
+                          isDeleted={item.user.isDeleted}
+                        />
 
                         <View style={[styles.userInfo, { marginLeft: theme.spacing.md }]}>
                           <View style={styles.nameRow}>
@@ -150,6 +145,7 @@ export default function SubscriptionsScreen() {
                                 ...theme.typography.bodyBold,
                                 color: theme.colors.text,
                               }}
+                              numberOfLines={1}
                             >
                               {item.user.name}
                             </Text>
@@ -164,24 +160,46 @@ export default function SubscriptionsScreen() {
                         </View>
                       </TouchableOpacity>
 
-                      <TouchableOpacity
-                        style={[
-                          styles.pinButton,
-                          {
-                            width: theme.spacing.iconButtonHeight,
-                            height: theme.spacing.iconButtonHeight,
-                            borderRadius: theme.spacing.radiusRound,
-                            backgroundColor: item.isPinned ? theme.colors.text : theme.colors.surfaceVariant,
-                          },
-                        ]}
-                        onPress={() => togglePin(item.user.id)}
-                      >
-                        <Pin
-                          size={theme.spacing.iconSizeSmall}
-                          color={item.isPinned ? theme.colors.textInverse : theme.colors.textSecondary}
-                          fill={item.isPinned ? theme.colors.textInverse : 'none'}
-                        />
-                      </TouchableOpacity>
+                      <View style={styles.actions}>
+                        <TouchableOpacity
+                          style={[
+                            styles.actionButton,
+                            {
+                              width: theme.spacing.iconButtonHeight,
+                              height: theme.spacing.iconButtonHeight,
+                              borderRadius: theme.spacing.radiusRound,
+                              backgroundColor: item.isPinned ? theme.colors.text : theme.colors.surfaceVariant,
+                            },
+                          ]}
+                          disabled={togglePinMutation.isPending || unsubscribeMutation.isPending}
+                          onPress={() => togglePinMutation.mutate({ userId: item.user.id, isPinned: !item.isPinned })}
+                        >
+                          <Pin
+                            size={theme.spacing.iconSizeSmall}
+                            color={item.isPinned ? theme.colors.textInverse : theme.colors.textSecondary}
+                            fill={item.isPinned ? theme.colors.textInverse : 'none'}
+                          />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={[
+                            styles.actionButton,
+                            {
+                              width: theme.spacing.iconButtonHeight,
+                              height: theme.spacing.iconButtonHeight,
+                              borderRadius: theme.spacing.radiusRound,
+                              backgroundColor: theme.colors.surfaceVariant,
+                            },
+                          ]}
+                          disabled={unsubscribeMutation.isPending}
+                          onPress={() => unsubscribeMutation.mutate(item.user.id)}
+                        >
+                          <UserMinus
+                            size={theme.spacing.iconSizeSmall}
+                            color={theme.colors.error}
+                          />
+                        </TouchableOpacity>
+                      </View>
                     </View>
                   ))}
                 </View>
@@ -222,9 +240,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  pinButton: {
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginLeft: 12,
+  },
+  actionButton: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 12,
+  },
+  deletedUser: {
+    opacity: 0.5,
   },
 });
