@@ -71,4 +71,11 @@ export const activitiesApi = {
       { method: 'POST', signal: config?.signal },
       config?.authToken
     ),
+
+  declineOrganizership: (activityId: string, config?: RequestConfig) =>
+    apiRequest<void>(
+      `/activities/${activityId}/decline-organizership`,
+      { method: 'POST', signal: config?.signal },
+      config?.authToken
+    ),
 };

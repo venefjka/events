@@ -1,7 +1,7 @@
 ﻿import { ActivityFormat, ActivityLevel } from './primitives';
 import { CityDto } from './shared';
 
-export type ActivityRegistrationFilter = 'any' | 'yes' | 'no';
+export type ActivityRegistrationFilter = 'any' | 'request' | 'free';
 
 export interface FilterState {
   categoryId?: string;
@@ -22,9 +22,9 @@ export interface FilterState {
   dateTo: string;
   timeFrom: string;
   timeTo: string;
-  timeZoneRange: [number, number];
+  showImportedWithoutOrganizer: boolean;
 }
 
-export interface UserActivityFeedState {
+export interface UserHistoryState {
   activeCategory: 'all' | 'organizer' | 'participant' | 'ratings';
 }

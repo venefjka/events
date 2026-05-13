@@ -2,7 +2,7 @@
 
 export interface CityDto {
   settlement: string;
-  region: string;
+  region?: string | null;
   country: string;
   latitude: number;
   longitude: number;
@@ -24,7 +24,7 @@ export interface ActivityPreferencesDto {
   ageFrom?: number;
   ageTo?: number;
   level?: ActivityLevel;
-  maxParticipants?: number;
+  maxParticipants: number | null;
 }
 
 export interface AttendanceHistoryDto {

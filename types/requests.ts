@@ -8,8 +8,7 @@
   IsoDateTimeString,
   SubcategoryId,
 } from './primitives';
-import type { UserActivityFeedEventTypeDto } from './dto';
-import { ActivityPreferencesDto, CityDto, LocationDto, UserPrivacySettings } from './shared';
+import { ActivityPreferencesDto, CityDto, LocationDto } from './shared';
 
 export interface LoginRequest {
   email: string;
@@ -24,7 +23,7 @@ export interface RegisterRequest {
   gender: Gender;
   city: CityDto;
   interests: SubcategoryId[];
-  privacy?: Partial<UserPrivacySettings>;
+  showBirthDate: boolean;
 }
 
 export interface UpdateMeRequest {
@@ -34,16 +33,7 @@ export interface UpdateMeRequest {
   gender?: Gender;
   city?: CityDto;
   interests?: SubcategoryId[];
-}
-
-export interface UpdatePrivacyRequest {
-  showAvatar?: boolean;
-  showGender?: boolean;
-  showCity?: boolean;
-  showInterests?: boolean;
   showBirthDate?: boolean;
-  showAttendanceHistory?: boolean;
-  showReviews?: boolean;
 }
 
 export interface CreateActivityRequest {
@@ -95,11 +85,6 @@ export interface RejectJoinRequestRequest {
   userId: Id;
 }
 
-export interface MarkAttendanceRequest {
-  activityId: Id;
-  userId: Id;
-}
-
 export interface CreateActivityRatingRequest {
   activityId: Id;
   rating: number;
@@ -130,13 +115,4 @@ export interface UploadFileRequest {
   name: string;
   mimeType: string;
   uri: string;
-}
-
-export interface CreateUserActivityFeedEventRequest {
-  userId: Id;
-  activityId: Id;
-  type: UserActivityFeedEventTypeDto;
-  occurredAt?: IsoDateTimeString;
-  actorUserId?: Id | null;
-  metadata?: Record<string, unknown>;
 }

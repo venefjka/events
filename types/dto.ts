@@ -16,7 +16,6 @@ import {
   AttendanceHistoryDto,
   CityDto,
   LocationDto,
-  UserPrivacySettings,
 } from './shared';
 
 export interface ReviewDto {
@@ -34,22 +33,24 @@ export interface UserSnippetDto {
   name: string;
   avatarFileId?: Id | null;
   rating?: number;
+  isDeleted?: boolean;
 }
 
 export interface UserProfileDto {
   id: Id;
   name: string;
+  birthDate?: string | null;
   avatarFileId?: Id | null;
   rating: number;
   age?: number;
-  gender?: Gender;
-  city?: CityDto;
-  interests?: SubcategoryId[];
+  gender: Gender;
+  city: CityDto;
+  interests: SubcategoryId[];
   attendanceHistory?: AttendanceHistoryDto;
   reviewsPreview?: ReviewDto[];
-  privacy?: UserPrivacySettings;
+  showBirthDate: boolean;
   isCurrentUser: boolean;
-  isSubscribed?: boolean;
+  isSubscribed: boolean | null;
 }
 
 export interface ActivityListItemDto {
@@ -57,15 +58,14 @@ export interface ActivityListItemDto {
   title: string;
   startAt: IsoDateTimeString;
   endAt: IsoDateTimeString;
+  timeZone: IanaTimeZone;
   format: ActivityFormat;
   status: ActivityStatus;
   location: LocationDto;
   categoryId: string;
-  subcategoryId?: SubcategoryId | null;
-  categoryName?: string;
-  subcategoryName?: string;
+  subcategoryId: SubcategoryId | null;
   photoFileIds?: Id[];
-  coverPhotoFileId?: Id;
+  coverPhotoFileId?: Id | null;
   organizer: UserSnippetDto;
   participantsCount: number;
   pendingRequestsCount?: number;
@@ -91,9 +91,8 @@ export interface ActivityDetailDto {
   location: LocationDto;
   categoryId: string;
   subcategoryId?: SubcategoryId | null;
-  categoryName?: string;
-  subcategoryName?: string;
   photoFileIds: Id[];
+  coverPhotoFileId?: Id | null;
   organizer: UserSnippetDto;
   participantsCount: number;
   participantsPreview: UserSnippetDto[];
@@ -122,26 +121,12 @@ export interface ActivityJoinRequestDto {
   participationStatus: 'pending';
 }
 
-export interface ActivityParticipationDto {
-  id: Id;
-  activityId: Id;
-  userId: Id;
-  status: ParticipationStatus;
-  createdAt: IsoDateTimeString;
-}
-
 export interface ActivityRatingDto {
   id: Id;
   user: UserSnippetDto;
   rating: number;
   comment?: string;
   createdAt: IsoDateTimeString;
-}
-
-export interface ActivityRatingsBatchDto {  // todo лишний?
-  activityId: Id;
-  averageRating: number;
-  totalRatings: number;
 }
 
 export interface NotificationDto {
@@ -151,11 +136,10 @@ export interface NotificationDto {
   message: string;
   timestamp: IsoDateTimeString;
   read: boolean;
-  activityId?: Id;
-  userId?: Id;
-  actionRequired?: boolean;
-  requestUserId?: Id;
-  activityTitle?: string;
+  activityId: Id | null;
+  actionRequired: boolean;
+  requestUserId: Id | null;
+  activityTitle: string | null;
 }
 
 export interface FileDto {
@@ -196,31 +180,17 @@ export interface IssueQrTokenResponseDto {
   expiresAt: IsoDateTimeString;
 }
 
-export interface ResolveQrTokenRequestDto {
-  token: string;
-}
-
-export interface ResolveQrTokenResponseDto {
+export interface ScanAttendanceResponseDto {
   user: UserSnippetDto;
-  expiresAt: IsoDateTimeString;
+  status: 'attended';
 }
 
-export type UserActivityFeedEventTypeDto =
-  | 'created'
-  | 'attended'
-  | 'rated'
-  | 'cancelled'
-  | 'leaved'
-  | 'joined'
-  | 'missed';
+export type HistoryEventType = 'organized' | 'cancelled' | 'joined' | 'attended' | 'missed' | 'rated';
 
-export interface UserActivityFeedEventDto {
-  id: Id;
-  userId: Id;
-  activityId: Id;
-  type: UserActivityFeedEventTypeDto;
+export interface HistoryEventDto {
+  type: HistoryEventType;
   occurredAt: IsoDateTimeString;
-  createdAt: IsoDateTimeString;
-  actorUserId?: Id | null;
-  metadata?: Record<string, unknown>;
+  activity: ActivityListItemDto;
+  rating?: number | null;
+  ratingComment?: string | null;
 }

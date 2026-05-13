@@ -1,4 +1,5 @@
 import type { CityDto, PaginatedResponse } from '@/types/shared';
+import { toSnakeCaseKey } from './case';
 
 type Primitive = string | number | boolean;
 
@@ -19,9 +20,10 @@ export const buildQueryString = (query?: Record<string, unknown>) => {
     }
 
     if (Array.isArray(value)) {
+      const paramKey = toSnakeCaseKey(key);
       value.forEach((item) => {
         if (item != null && item !== '') {
-          appendValue(params, key, item as Primitive);
+          appendValue(params, paramKey, item as Primitive);
         }
       });
       return;
@@ -29,14 +31,14 @@ export const buildQueryString = (query?: Record<string, unknown>) => {
 
     if (typeof value === 'object') {
       if (isCityDto(value)) {
-        if (value.settlement) params.append('citySettlement', value.settlement);
-        if (value.region) params.append('cityRegion', value.region);
-        if (value.country) params.append('cityCountry', value.country);
+        if (value.settlement) params.append('city_settlement', value.settlement);
+        if (value.region) params.append('city_region', value.region);
+        if (value.country) params.append('city_country', value.country);
       }
       return;
     }
 
-    appendValue(params, key, value as Primitive);
+    appendValue(params, toSnakeCaseKey(key), value as Primitive);
   });
 
   const serialized = params.toString();

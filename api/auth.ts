@@ -1,5 +1,5 @@
-import type { AuthSessionDto, UserProfileDto } from '@/types/dto';
-import type { LoginRequest, RegisterRequest, RequestConfig, UpdateMeRequest, UpdatePrivacyRequest } from './types';
+import type { AuthSessionDto, AuthTokensDto, UserProfileDto } from '@/types/dto';
+import type { LoginRequest, RegisterRequest, RequestConfig, UpdateMeRequest } from './types';
 import { apiRequest } from './client';
 
 export const authApi = {
@@ -12,11 +12,15 @@ export const authApi = {
   register: (payload: RegisterRequest, config?: RequestConfig) =>
     apiRequest<AuthSessionDto>('/auth/register', { method: 'POST', body: payload, signal: config?.signal }),
 
-  logout: (config?: RequestConfig) =>
-    apiRequest<void>('/auth/logout', { method: 'POST', signal: config?.signal }, config?.authToken),
+  logout: (refreshToken?: string | null, config?: RequestConfig) =>
+    apiRequest<void>(
+      '/auth/logout',
+      { method: 'POST', body: refreshToken ? { refreshToken } : undefined, signal: config?.signal },
+      config?.authToken
+    ),
 
   refresh: (refreshToken: string, config?: RequestConfig) =>
-    apiRequest<AuthSessionDto>('/auth/refresh', {
+    apiRequest<AuthTokensDto>('/auth/refresh', {
       method: 'POST',
       body: { refreshToken },
       signal: config?.signal,
@@ -24,13 +28,6 @@ export const authApi = {
 
   updateMe: (payload: UpdateMeRequest, config?: RequestConfig) =>
     apiRequest<UserProfileDto>('/me', { method: 'PATCH', body: payload, signal: config?.signal }, config?.authToken),
-
-  updatePrivacy: (payload: UpdatePrivacyRequest, config?: RequestConfig) =>
-    apiRequest<UserProfileDto>(
-      '/me/privacy',
-      { method: 'PATCH', body: payload, signal: config?.signal },
-      config?.authToken
-    ),
 
   deleteMe: (config?: RequestConfig) =>
     apiRequest<void>('/me', { method: 'DELETE', signal: config?.signal }, config?.authToken),

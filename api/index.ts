@@ -1,4 +1,5 @@
 export * from './client';
+export * from './case';
 export * from './types';
 export * from './helpers';
 export * from './auth';
@@ -11,4 +12,3 @@ export * from './notifications';
 export * from './subscriptions';
 export * from './qr';
 export * from './files';
-export * from './userActivityFeed';

@@ -1,15 +1,17 @@
 ﻿import { ActivityFormat, ActivityLevel, IsoDateString, NotificationType } from './primitives';
-import { CityDto } from './shared';
 
 export interface ActivityListQuery {
+  q?: string;
   limit?: number;
   cursor?: string;
-  sort?: 'startAt' | 'createdAt' | 'price';
+  sort?: 'start_at' | 'created_at' | 'price';
   order?: 'asc' | 'desc';
   categoryId?: string;
   subcategoryId?: string;
   format?: ActivityFormat;
-  city?: CityDto;
+  citySettlement?: string;
+  cityRegion?: string;
+  cityCountry?: string;
   dateFrom?: IsoDateString;
   dateTo?: IsoDateString;
   timeFrom?: string;
@@ -22,41 +24,23 @@ export interface ActivityListQuery {
   ageTo?: number;
   priceTo?: number;
   maxParticipants?: number;
-  timeZoneOffsetFrom?: number;
-  timeZoneOffsetTo?: number;
 }
 
-export interface RecommendedActivitiesQuery {
-  limit?: number;
-  cursor?: string;
-  city?: CityDto;
-  dateFrom?: IsoDateString;
-  dateTo?: IsoDateString;
-  timeFrom?: string;
-  timeTo?: string;
-}
+export interface RecommendedActivitiesQuery extends ActivityListQuery { }
 
 export interface MyActivitiesQuery extends ActivityListQuery {
-  tab: 'upcoming' | 'attended' | 'created';
+  tab: 'created' | 'future_created' | 'upcoming' | 'attended' | 'organizer' | 'participant' | 'ratings' | 'all';
 }
 
 export interface UserHistoryQuery {
-  tab: 'created' | 'attended' | 'upcoming';
+  tab: 'organizer' | 'participant' | 'ratings' | 'all';
   limit?: number;
   cursor?: string;
-  sort?: 'startAt' | 'createdAt';
-}
-
-export interface JoinParticipationQuery {   // todo лишний?
-  activityIds?: string[];
-  userId?: string;
-  statuses?: Array<'pending' | 'accepted' | 'attended' | 'rejected' | 'missed'>;
 }
 
 export interface ActivityParticipantsQuery {
   limit?: number;
   cursor?: string;
-  status?: 'pending' | 'accepted' | 'attended' | 'rejected' | 'missed';
 }
 
 export interface ActivityJoinRequestsQuery {
@@ -64,14 +48,9 @@ export interface ActivityJoinRequestsQuery {
   cursor?: string;
 }
 
-export interface ActivityRatingsQuery {   // todo лишний?
-  activityIds?: string[];
-}
-
 export interface ActivityRatingsListQuery {
   limit?: number;
   cursor?: string;
-  sort?: 'createdAt' | 'rating';
 }
 
 export interface NotificationsQuery {
@@ -85,14 +64,5 @@ export interface SubscriptionsQuery {
   limit?: number;
   cursor?: string;
   pinnedOnly?: boolean;
-  sort?: 'subscribedAt' | 'name';
-}
-
-export type UserActivityFeedCategoryQuery = 'all' | 'organizer' | 'participant' | 'ratings';
-
-export interface UserActivityFeedQuery {
-  limit?: number;
-  cursor?: string;
-  category?: Exclude<UserActivityFeedCategoryQuery, 'all'>;
-  includeHiddenParticipation?: boolean;
+  sort?: 'subscribed_at' | 'name';
 }

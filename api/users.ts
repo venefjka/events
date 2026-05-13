@@ -1,4 +1,4 @@
-import type { UserProfileDto, ActivityListItemDto } from '@/types/dto';
+import type { UserProfileDto, HistoryEventDto } from '@/types/dto';
 import type { PaginatedResponse } from '@/types/shared';
 import type { RequestConfig, UserHistoryQuery } from './types';
 import { apiRequest } from './client';
@@ -9,7 +9,7 @@ export const usersApi = {
     apiRequest<UserProfileDto>(`/users/${userId}`, { method: 'GET', signal: config?.signal }, config?.authToken),
 
   getHistory: (userId: string, query: UserHistoryQuery, config?: RequestConfig) =>
-    apiRequest<PaginatedResponse<ActivityListItemDto>>(
+    apiRequest<PaginatedResponse<HistoryEventDto>>(
       `/users/${userId}/history${buildQueryString(query as unknown as Record<string, unknown>)}`,
       { method: 'GET', signal: config?.signal },
       config?.authToken

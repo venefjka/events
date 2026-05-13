@@ -116,21 +116,3 @@ export interface FileEntity {
   size: number;
   createdAt: IsoDateTimeString;
 }
-
-export interface UserActivityFeedEventEntity {
-  id: Id;
-  userId: Id;
-  activityId: Id;
-  type:
-    | 'created'
-    | 'attended'
-    | 'rated'
-    | 'cancelled'
-    | 'leaved'
-    | 'joined'
-    | 'missed';
-  occurredAt: IsoDateTimeString;
-  actorUserId?: Id | null;
-  metadata?: Record<string, unknown>;
-  createdAt: IsoDateTimeString;
-}
