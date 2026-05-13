@@ -6,11 +6,11 @@ import { Avatar } from '@/components/ui/Avatar';
 import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
 import { useTheme } from '@/themes/useTheme';
 import type { Theme } from '@/themes/theme';
-import type { UserPublic } from '@/types';
+import type { PersonSummary } from './PeopleSummarySection';
 
 interface RequestsSheetProps {
   visible: boolean;
-  requests: UserPublic[];
+  requests: PersonSummary[];
   onClose: () => void;
   onApprove: (userId: string) => void;
   onReject: (userId: string) => void;
@@ -26,15 +26,16 @@ export function RequestsSheet({
   const theme = useTheme();
   const styles = createStyles(theme);
 
-  const handleApprove = (participant: UserPublic) => {
+  const handleApprove = (participant: PersonSummary) => {
     onApprove(participant.id);
   };
 
-  const handleReject = (participant: UserPublic) => {
+  const handleReject = (participant: PersonSummary) => {
     onReject(participant.id);
   };
 
-  const handleOpenUser = (participant: UserPublic) => {
+  const handleOpenUser = (participant: PersonSummary) => {
+    if (participant.isDeleted) return;
     router.push(`/user/${participant.id}`);
   };
 
@@ -42,43 +43,59 @@ export function RequestsSheet({
     <BottomSheetModal visible={visible} title="Заявки на участие" onClose={onClose}>
       {requests.length > 0 ? (
         <View style={styles.requestsList}>
-          {requests.map((participant) => (
-            <View
-              key={participant.id}
-              style={[styles.requestRow, { borderBottomColor: theme.colors.border }]}
-            >
-              <TouchableOpacity
-                activeOpacity={0.8}
-                style={styles.requestUserInfo}
-                onPress={() => handleOpenUser(participant)}
-              >
-                <Avatar name={participant.name} size="small" imageUrl={participant.avatar} />
-                <Text
-                  numberOfLines={1}
-                  style={[styles.requestUserName, { color: theme.colors.text, ...theme.typography.bodyBold }]}
-                >
-                  {participant.name}
-                </Text>
-              </TouchableOpacity>
+          {requests.map((participant) => {
+            const isDeleted = Boolean(participant.isDeleted);
 
-              <View style={styles.requestActions}>
+            return (
+              <View
+                key={participant.id}
+                style={[styles.requestRow, { borderBottomColor: theme.colors.border }]}
+              >
                 <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[styles.iconButton, { backgroundColor: theme.colors.surfaceVariant }]}
-                  onPress={() => handleReject(participant)}
+                  activeOpacity={0.85}
+                  disabled={isDeleted}
+                  style={[styles.requestUserInfo, isDeleted && styles.deletedRequestUser]}
+                  onPress={() => handleOpenUser(participant)}
                 >
-                  <X size={theme.spacing.iconSizeSmall} color={theme.colors.text} />
+                  <Avatar
+                    name={participant.name}
+                    size="small"
+                    imageUrl={participant.avatarUrl}
+                    isDeleted={isDeleted}
+                  />
+                  <Text
+                    numberOfLines={1}
+                    style={[
+                      styles.requestUserName,
+                      {
+                        color: isDeleted ? theme.colors.textSecondary : theme.colors.text,
+                        ...theme.typography.bodyBold,
+                      },
+                    ]}
+                  >
+                    {participant.name}
+                  </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  activeOpacity={0.8}
-                  style={[styles.iconButton, { backgroundColor: theme.colors.primary }]}
-                  onPress={() => handleApprove(participant)}
-                >
-                  <Check size={theme.spacing.iconSizeSmall} color={theme.colors.textInverse} />
-                </TouchableOpacity>
+
+                <View style={styles.requestActions}>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[styles.iconButton, { backgroundColor: theme.colors.surfaceVariant }]}
+                    onPress={() => handleReject(participant)}
+                  >
+                    <X size={theme.spacing.iconSizeSmall} color={theme.colors.text} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    activeOpacity={0.8}
+                    style={[styles.iconButton, { backgroundColor: theme.colors.primary }]}
+                    onPress={() => handleApprove(participant)}
+                  >
+                    <Check size={theme.spacing.iconSizeSmall} color={theme.colors.textInverse} />
+                  </TouchableOpacity>
+                </View>
               </View>
-            </View>
-          ))}
+            );
+          })}
         </View>
       ) : (
         <Text style={{ color: theme.colors.textSecondary, ...theme.typography.body }}>
@@ -116,6 +133,9 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing.sm,
+    },
+    deletedRequestUser: {
+      opacity: 0.55,
     },
     iconButton: {
       width: theme.spacing.iconButtonHeight,

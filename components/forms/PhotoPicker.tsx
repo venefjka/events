@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
   runOnJS,
@@ -44,6 +44,9 @@ interface PhotoTileProps {
   borderRadius: number;
   deleteRadius: number;
 }
+
+const MAX_UPLOAD_SIZE_MB = 10;
+const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
 
 const PhotoTile: React.FC<PhotoTileProps> = ({
   uri,
@@ -212,7 +215,20 @@ export const PhotoPicker: React.FC<PhotoPickerProps> = ({
     });
 
     if (!result.canceled) {
-      const selected = result.assets?.map((asset) => asset.uri) ?? [];
+      const oversizedCount = result.assets?.filter(
+        (asset) => typeof asset.fileSize === 'number' && asset.fileSize > MAX_UPLOAD_SIZE_BYTES
+      ).length ?? 0;
+
+      if (oversizedCount > 0) {
+        Alert.alert(
+          'Слишком большой файл',
+          `Можно загрузить фото до ${MAX_UPLOAD_SIZE_MB} МБ.`
+        );
+      }
+
+      const selected = result.assets
+        ?.filter((asset) => typeof asset.fileSize !== 'number' || asset.fileSize <= MAX_UPLOAD_SIZE_BYTES)
+        .map((asset) => asset.uri) ?? [];
       const merged = [...value, ...selected.filter((uri) => !value.includes(uri))].slice(0, max);
       onChange(merged);
     }

@@ -1,4 +1,4 @@
-import { Activity } from '@/types';
+import type { ActivityListItemDto } from '@/types/dto';
 
 export type MapRegion = {
     latitude: number;
@@ -15,7 +15,7 @@ export type Coordinate = {
 export type SingleMarkerItem = {
     id: string;
     isCluster: false;
-    activity: Activity;
+    activity: ActivityListItemDto;
     coordinate: Coordinate;
 };
 
@@ -23,7 +23,7 @@ export type ClusterMarkerItem = {
     id: string;
     isCluster: true;
     badgeCount: number;
-    activities: Activity[];
+    activities: ActivityListItemDto[];
     coordinate: Coordinate;
 };
 
@@ -159,7 +159,7 @@ export const areCoordinatesClose = (
     );
 };
 
-export const clusterHasSameCoordinates = (activities: Activity[]) => {
+export const clusterHasSameCoordinates = (activities: ActivityListItemDto[]) => {
     if (activities.length <= 1) return false;
 
     const first = activities[0].location;
@@ -176,13 +176,13 @@ export const clusterHasSameCoordinates = (activities: Activity[]) => {
 };
 
 type Bucket = {
-    activities: Activity[];
+    activities: ActivityListItemDto[];
     sumLatitude: number;
     sumLongitude: number;
 };
 
 export const filterVisibleActivities = (
-    activities: Activity[],
+    activities: ActivityListItemDto[],
     region: MapRegion,
     marginFactor: number = REGION_MARGIN_FACTOR
 ) => {
@@ -205,7 +205,7 @@ export const bucketActivities = ({
     mapHeight,
     cellSizePx = MARKER_CELL_SIZE_PX,
 }: {
-    activities: Activity[];
+    activities: ActivityListItemDto[];
     region: MapRegion;
     mapWidth: number;
     mapHeight: number;
@@ -296,7 +296,7 @@ export const buildPixelClusters = ({
     marginFactor = REGION_MARGIN_FACTOR,
     cellSizePx = MARKER_CELL_SIZE_PX,
 }: {
-    activities: Activity[];
+    activities: ActivityListItemDto[];
     region: MapRegion;
     mapWidth: number;
     mapHeight: number;

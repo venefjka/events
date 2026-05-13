@@ -7,16 +7,10 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Search, AlarmClock, CircleCheck, CircleUser, Sprout } from 'lucide-react-native';
 import { router } from 'expo-router';
-import { useActivities } from '../../contexts/ActivitiesContext';
-import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
 import { useAuth } from '../../contexts/AuthContext';
-import { Activity } from '@/types';
 import { ActivityCard } from '@/components/cards/ActivityCard';
 import { Input } from '@/components/ui/Input';
 import { useTheme } from '@/themes/useTheme';
-import { createCommonStyles } from '@/styles/common';
-
-import { useMyActivities } from '../../hooks/useMyActivities';
 import { Header, HeaderButtons } from '../../components/ui/Header';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { ExpandableTabBar } from '@/components/ui/ExpandableTabs';
@@ -37,14 +31,14 @@ import {
     useFiltersFormController,
     applySectionDefaults,
 } from '@/components/filters';
+import { toActivityListQuery } from '@/components/filters/toActivityListQuery';
+import { useMyActivitiesList } from '@/hooks/queries/useMyActivitiesList';
+import { ActivityCardModel } from '@/types';
 
 export default function MyActivitiesScreen() {
     const { currentUser } = useAuth();
-    const { allActivities } = useActivities();
-    const { getUserActivityIdsByStatus } = useActivityParticipation();
     const { filters, setFilters } = useActivityFilters('my-activities');
     const theme = useTheme();
-    const commonStyles = createCommonStyles(theme);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeTab, setActiveTab] = useState<MyActivitiesTab>('upcoming');
     const [activeFilterSection, setActiveFilterSection] = useState<FilterSectionKey | null>(null);
@@ -57,31 +51,15 @@ export default function MyActivitiesScreen() {
         profile,
     });
 
-    const upcomingParticipationActivityIds = useMemo(() => {
-        if (!currentUser) {
-            return [];
-        }
-
-        return getUserActivityIdsByStatus(currentUser.id, ['pending', 'accepted']);
-    }, [currentUser, getUserActivityIdsByStatus]);
-
-    const attendedActivityIds = useMemo(() => {
-        if (!currentUser) {
-            return [];
-        }
-
-        return getUserActivityIdsByStatus(currentUser.id, ['attended']);
-    }, [currentUser, getUserActivityIdsByStatus]);
-
-    const { displayActivities } = useMyActivities({
-        searchQuery,
-        allActivities,
-        currentUser,
-        filters,
-        activeTab,
-        upcomingParticipationActivityIds,
-        attendedActivityIds,
-    });
+    const activityQueryParams = useMemo(
+        () => toActivityListQuery(filters, 50, searchQuery),
+        [filters, searchQuery]
+    );
+    const activitiesQuery = useMyActivitiesList(
+        { ...activityQueryParams, tab: activeTab },
+        Boolean(currentUser)
+    );
+    const displayActivities = activitiesQuery.data?.items ?? [];
 
     const openFilterSection = (section: FilterSectionKey) => {
         setModalFilters(createFilterDraft(filters, profile));
@@ -129,7 +107,7 @@ export default function MyActivitiesScreen() {
             case 'format':
                 return <FormatFilterSection controller={filterController} />;
             case 'schedule':
-                return <ScheduleFilterSection controller={filterController} />;
+                return <ScheduleFilterSection controller={filterController} allowPastDates />;
             case 'participation':
                 return <ParticipationFilterSection controller={filterController} />;
             case 'preferences':
@@ -139,7 +117,7 @@ export default function MyActivitiesScreen() {
         }
     };
 
-    const renderActivityCard = ({ item }: { item: Activity }) => (
+    const renderActivityCard = ({ item }: { item: ActivityCardModel }) => (
         <ActivityCard
             activity={item}
             mode="list"

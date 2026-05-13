@@ -8,10 +8,8 @@ import { ActivityDetailsStep } from '@/components/steps/activity/ActivityDetails
 import { ActivityScheduleStep } from '@/components/steps/activity/ActivityScheduleStep';
 import { ActivityPreferencesStep } from '@/components/steps/activity/ActivityPreferencesStep';
 import { ActivityPreviewStep } from '@/components/steps/activity/ActivityPreviewStep';
-import { useActivities } from '@/contexts/ActivitiesContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { categories } from '@/constants/categories';
-import { buildCreateActivityDraftFromRecord } from '@/utils/activityUtils';
 import {
   getEndDateError,
   getEndTimeError,
@@ -23,17 +21,22 @@ import {
 } from '@/utils/validation';
 import { buildDateTimeWithTimeZone } from '@/utils/date';
 import { getDefaultUtcOffsetOption, getDeviceTimeZone, getTimeZoneFromLocation } from '@/utils/timezone';
+import { useCreateActivity } from '@/hooks/mutations/useCreateActivity';
+import { filesRepository } from '@/repositories/files.repository';
+import { getFileNameFromUri, getMimeTypeFromUri, isRemoteUri } from '@/utils/files';
+import type { CreateActivityRequest } from '@/types/requests';
+import { useActivityDetails } from '@/hooks/queries/useActivityDetails';
 
 export default function CreateActivityScreen() {
   const { sourceActivityId } = useLocalSearchParams<{ sourceActivityId?: string }>();
-  const { allActivities, createActivity, createActivities } = useActivities();
   const { currentUser } = useAuth();
+  const createActivityMutation = useCreateActivity();
 
   if (!currentUser) return null;
 
   const resolvedSourceActivityId = Array.isArray(sourceActivityId) ? sourceActivityId[0] : sourceActivityId;
   const sourceActivity = resolvedSourceActivityId
-    ? allActivities.find((activity) => activity.id === resolvedSourceActivityId)
+    ? useActivityDetails(resolvedSourceActivityId)
     : null;
 
   const defaultTimeZoneOption = getDefaultUtcOffsetOption();
@@ -49,11 +52,11 @@ export default function CreateActivityScreen() {
     format: 'offline' as 'offline' | 'online',
     status: 'active' as 'active' | 'cancelled',
     location: {
-      latitude: currentUser.cityPlace.latitude,
-      longitude: currentUser.cityPlace.longitude,
-      settlement: currentUser.cityPlace.settlement,
-      region: currentUser.cityPlace.region,
-      country: currentUser.cityPlace.country,
+      latitude: currentUser.city.latitude,
+      longitude: currentUser.city.longitude,
+      settlement: currentUser.city.settlement,
+      region: currentUser.city.region,
+      country: currentUser.city.country,
     },
     timeZone: defaultTimeZoneOption.id,
     timeZoneLabel: defaultTimeZoneOption.label,
@@ -79,12 +82,7 @@ export default function CreateActivityScreen() {
     price: 0,
   };
 
-  const initialData = sourceActivity
-    ? {
-      ...baseInitialData,
-      ...buildCreateActivityDraftFromRecord(sourceActivity),
-    }
-    : baseInitialData;
+  const initialData = sourceActivity || baseInitialData;
 
   const buildNextDate = (date: Date, repeat: string) => {
     const next = new Date(date);
@@ -118,7 +116,7 @@ export default function CreateActivityScreen() {
     return result;
   };
 
-  const handleSubmit = (data: any) => {
+  const handleSubmit = async (data: any) => {
     const category = categories.find((cat) => cat.id === data.categoryId);
     if (!category) {
       Alert.alert('Missing data', 'Choose a category before creating the activity.');
@@ -149,77 +147,88 @@ export default function CreateActivityScreen() {
         latitude: data.location?.latitude ?? 0,
         longitude: data.location?.longitude ?? 0,
         address: data.address || 'Address not set',
-        settlement: data.location?.settlement || currentUser?.cityPlace?.settlement,
-        region: data.location?.region || currentUser?.cityPlace?.region,
-        country: data.location?.country || currentUser?.cityPlace?.country,
+        settlement: data.location?.settlement || currentUser?.city.settlement,
+        region: data.location?.region || currentUser?.city.region,
+        country: data.location?.country || currentUser?.city.country,
       };
 
     const ageFrom = data.preferredAgeAny ? undefined : Number(data.preferredAgeFrom) || undefined;
     const ageTo = data.preferredAgeAny ? undefined : Number(data.preferredAgeTo) || undefined;
 
     const maxParticipantsValue = data.maxParticipantsAny
-      ? 0
+      ? null
       : Math.max(2, Number(data.maxParticipants) || 2);
 
     const normalizedGender = data.preferredGender === 'any' ? undefined : data.preferredGender;
     const normalizedLevel = data.level === 'any' ? undefined : data.level;
 
-    const basePayload = {
-      title: String(data.title || '').trim(),
-      description: String(data.description || '').trim(),
-      categoryId: category.id,
-      subcategoryId: subcategory?.id,
-      format: data.format,
-      status: data.status,
-      location,
-      timeZone,
-      preferences: {
-        gender: normalizedGender,
-        ageFrom,
-        ageTo,
-        level: normalizedLevel,
-        maxParticipants: maxParticipantsValue,
-      },
-      requiresApproval: Boolean(data.requiresApproval),
-      photoUrls: data.photoUrls?.length ? data.photoUrls : data.photoUrl ? [data.photoUrl] : undefined,
-      price: data.isFree ? 0 : Number(data.price) || 0,
-    };
-
-    const shouldRepeat = data.isRepeating === 'yes' && data.endRepeatDate?.trim();
-    const repeatEndDateTime = shouldRepeat
-      ? buildDateTimeWithTimeZone(data.endRepeatDate, data.startTime, timeZone)
-      : null;
-    const scheduleDates = shouldRepeat
-      ? buildScheduleDates(
-        startDateTime,
-        repeatEndDateTime ?? startDateTime,
-        data.repeat
-      )
-      : [startDateTime];
-
-    const durationMs = Math.max(0, endDateTime.getTime() - startDateTime.getTime());
-
-    const payloads = scheduleDates.map((date) => {
-      const start = new Date(date);
-      start.setHours(startDateTime.getHours(), startDateTime.getMinutes(), 0, 0);
-      const end = new Date(start.getTime() + durationMs);
-      return {
-        ...basePayload,
-        startAt: start.toISOString(),
-        endAt: end.toISOString(),
-      };
-    });
-
-    const createdActivities = payloads.length > 1
-      ? createActivities(payloads)
-      : payloads.length === 1
-        ? [createActivity(payloads[0])].filter(Boolean)
+    try {
+      const selectedPhotoUris = Array.isArray(data.photoUrls)
+        ? data.photoUrls.filter((uri: unknown): uri is string => typeof uri === 'string' && uri.trim().length > 0)
         : [];
+      const uploadedPhotoFileIds = await Promise.all(
+        selectedPhotoUris
+          .filter((uri: string) => !isRemoteUri(uri))
+          .map(async (uri: string, index: number) => {
+            const file = await filesRepository.upload({
+              uri,
+              name: getFileNameFromUri(uri, `activity-photo-${index + 1}`),
+              mimeType: getMimeTypeFromUri(uri),
+            });
+            return file.id;
+          })
+      );
 
-    if (createdActivities.length) {
+      const basePayload = {
+        title: String(data.title || '').trim(),
+        description: String(data.description || '').trim(),
+        categoryId: category.id,
+        subcategoryId: subcategory?.id,
+        format: data.format,
+        location,
+        timeZone,
+        preferences: {
+          gender: normalizedGender,
+          ageFrom,
+          ageTo,
+          level: normalizedLevel,
+          maxParticipants: maxParticipantsValue,
+        },
+        requiresApproval: Boolean(data.requiresApproval),
+        photoFileIds: uploadedPhotoFileIds,
+        price: data.isFree ? 0 : Number(data.price) || 0,
+      };
+
+      const shouldRepeat = data.isRepeating === 'yes' && data.endRepeatDate?.trim();
+      const repeatEndDateTime = shouldRepeat
+        ? buildDateTimeWithTimeZone(data.endRepeatDate, data.startTime, timeZone)
+        : null;
+      const scheduleDates = shouldRepeat
+        ? buildScheduleDates(
+          startDateTime,
+          repeatEndDateTime ?? startDateTime,
+          data.repeat
+        )
+        : [startDateTime];
+
+      const durationMs = Math.max(0, endDateTime.getTime() - startDateTime.getTime());
+
+      const payloads: CreateActivityRequest[] = scheduleDates.map((date) => {
+        const start = new Date(date);
+        start.setHours(startDateTime.getHours(), startDateTime.getMinutes(), 0, 0);
+        const end = new Date(start.getTime() + durationMs);
+        return {
+          ...basePayload,
+          startAt: start.toISOString(),
+          endAt: end.toISOString(),
+        };
+      });
+
+      await Promise.all(payloads.map((payload) => createActivityMutation.mutateAsync(payload)));
       router.back();
-    } else {
-      Alert.alert('Error', 'Sign in to create an activity.');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Не удалось создать событие.';
+      Alert.alert('Error', message);
     }
   };
 
@@ -356,7 +365,7 @@ export default function CreateActivityScreen() {
 
   return (
     <MultiStepForm
-      key={sourceActivity?.id ?? 'new-activity'}
+      key="new-activity"
       steps={steps}
       onSubmit={handleSubmit}
       submitButtonText="Готово"

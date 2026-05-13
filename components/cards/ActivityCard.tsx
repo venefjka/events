@@ -4,13 +4,10 @@ import {
     Text,
     TouchableOpacity,
     StyleSheet,
-    Image,
-    ImageBackground,
     StyleProp,
     ViewStyle,
     Dimensions,
 } from 'react-native';
-import { Activity } from '../../types';
 import { Card } from '../ui/Card';
 import { Chip } from '../ui/Chip';
 import { Avatar } from '../ui/Avatar';
@@ -22,12 +19,16 @@ import { useTheme } from '../../themes/useTheme';
 import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 import { formatActivityDate, formatDateOnly, formatTimeOnly, formatTimeZoneOffset } from '../../utils/date';
 import { router } from 'expo-router';
+import { categories } from '@/constants/categories';
+import { getFileUrl } from '@/utils/files';
+import { CachedImage } from '@/components/ui/CachedImage';
+import { ActivityCardModel } from '@/types';
 
 type Mode = 'map' | 'list';
 type Variant = 'default' | 'compact';
 
 interface ActivityCardProps {
-    activity: Activity;
+    activity: ActivityCardModel;
     onPress?: () => void;
     onClose?: () => void;
     mode?: Mode;
@@ -37,8 +38,6 @@ interface ActivityCardProps {
     style?: StyleProp<ViewStyle>;
     photoUriOverride?: string;
 }
-
-const prefetchedUris = new Set<string>();
 
 export const ActivityCard: React.FC<ActivityCardProps> = ({
     activity,
@@ -52,16 +51,17 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
     photoUriOverride,
 }) => {
     const theme = useTheme();
+    const category = categories.find((item) => item.id === activity.categoryId) ?? categories[0];
+    const subcategory = category.subcategories.find((item) => item.id === activity.subcategoryId);
+    const organizerName = activity.organizer.name;
+    const organizerAvatarUri = getFileUrl(activity.organizer.avatarFileId);
+    const coverPhotoUri = getFileUrl(activity.coverPhotoFileId);
+    const photoUri = photoUriOverride || coverPhotoUri;
+    const participantsCount = activity.participantsCount;
+    const timeZone = 'timeZone' in activity ? activity.timeZone as string : 'UTC';
     const isCompact = variant === 'compact';
-    const photoUri = photoUriOverride || activity.photoUrls?.[0];
     const [photoFailed, setPhotoFailed] = React.useState(false);
     const hasPhoto = Boolean(photoUri) && !photoFailed;
-    React.useEffect(() => {
-        if (!photoUri || prefetchedUris.has(photoUri)) return;
-        prefetchedUris.add(photoUri);
-        Image.prefetch(photoUri);
-    }, [photoUri]);
-    const timeZone = activity.timeZone;
     const startLabel = formatActivityDate(activity.startAt, timeZone);
     const endLabel = activity.endAt ? formatActivityDate(activity.endAt, timeZone) : '';
     const sameDate = activity.endAt
@@ -90,8 +90,8 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
 
     const maxParticipants = activity.preferences?.maxParticipants ?? 0;
     const participantsText = maxParticipants > 0
-        ? `${activity.currentParticipants.length}/${maxParticipants}`
-        : `${activity.currentParticipants.length}/∞`;
+        ? `${participantsCount}/${maxParticipants}`
+        : `${participantsCount}/∞`;
     const placeTitle = activity.location.name || activity.location.address;
     const ageLabel = useMemo(() => {
         const ageFrom = activity.preferences?.ageFrom;
@@ -109,11 +109,11 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
             icon?: React.ReactNode;
         }> = [];
 
-        const categoryLabel = activity.subcategory?.name ?? activity.category.name;
+        const categoryLabel = subcategory?.name ?? category.name;
         res.push({
             label: categoryLabel,
             variant: 'bw',
-            icon: renderCategoryIcon(activity.category, theme.spacing.iconSizeSmall - 2),
+            icon: renderCategoryIcon(category, theme.spacing.iconSizeSmall - 2),
         });
 
         if (activity.price === 0) res.push({ label: 'Бесплатно', variant: 'default' });
@@ -146,7 +146,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
         }
 
         return res;
-    }, [activity, ageLabel, theme.colors.text]);
+    }, [activity, ageLabel, category, subcategory, theme.colors.text, theme.spacing.iconSizeSmall]);
 
     const orderedBadges = useMemo(() => {
         const screenWidth = Dimensions.get('window').width;
@@ -203,23 +203,20 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                 ]}
             >
                 {hasPhoto ? (
-                    <ImageBackground
-                        source={{ uri: photoUri }}
-                        style={isCompact ? styles.photoCompact : styles.photo}
-                        resizeMode="cover"
-                        onError={() => setPhotoFailed(true)}
-                    >
+                    <View style={isCompact ? styles.photoCompact : styles.photo}>
+                        <CachedImage uri={photoUri} style={StyleSheet.absoluteFill} onError={() => setPhotoFailed(true)} />
                         {/* top bar */}
                         <View style={styles.photoTopRow}>
                             <Chip
-                                label={activity.organizer.name}
+                                label={organizerName}
                                 variant="bw"
                                 size="xs"
                                 icon={
                                     <Avatar
-                                        name={activity.organizer.name}
+                                        name={organizerName}
                                         size="xs"
-                                        imageUrl={activity.organizer.avatar}
+                                        imageUrl={organizerAvatarUri}
+                                        isDeleted={activity.organizer.isDeleted}
                                         style={styles.organizerAvatar}
                                     />
                                 }
@@ -241,7 +238,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                                 </TouchableOpacity>
                             ) : null}
                         </View>
-                    </ImageBackground>
+                    </View>
                 ) : (
                     <LinearGradient
                         colors={[theme.colors.border, theme.colors.surface]}
@@ -252,14 +249,15 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                         {/* top bar */}
                         <View style={styles.photoTopRow}>
                             <Chip
-                                label={activity.organizer.name}
+                                label={organizerName}
                                 variant="bw"
                                 size="xs"
                                 icon={
                                     <Avatar
-                                        name={activity.organizer.name}
+                                        name={organizerName}
                                         size="xs"
-                                        imageUrl={activity.organizer.avatar}
+                                        imageUrl={organizerAvatarUri}
+                                        isDeleted={activity.organizer.isDeleted}
                                         style={styles.organizerAvatar}
                                     />
                                 }
@@ -298,11 +296,11 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                     {isCompact ? (
                         <>
                             <Chip
-                                label={activity.subcategory?.name ?? activity.category.name}
+                                label={subcategory?.name ?? category.name}
                                 variant="bw"
                                 size="xs"
                                 selected
-                                icon={renderCategoryIcon(activity.category, theme.spacing.iconSizeSmall - 2)}
+                                icon={renderCategoryIcon(category, theme.spacing.iconSizeSmall - 2)}
                             />
                             <Text
                                 numberOfLines={1}

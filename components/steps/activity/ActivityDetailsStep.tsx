@@ -24,12 +24,8 @@ export const ActivityDetailsStep: React.FC<ActivityDetailsStepProps> = ({
   setScrollEnabled,
 }) => {
   const theme = useTheme();
-
   const isFree = Boolean(data.isFree);
-
-
   const formatId: ActivityFormat = data.format ?? 'offline';
-
   const formatItems = useMemo(() => getFormatItems(), []);
 
   const photoUrls = React.useMemo(() => {
@@ -48,7 +44,6 @@ export const ActivityDetailsStep: React.FC<ActivityDetailsStepProps> = ({
     }
   }, [data.photoUrl, data.photoUrls, updateData]);
 
-
   const handlePhotosChange = React.useCallback(
     (nextPhotos: string[]) => {
       updateData({
@@ -60,14 +55,14 @@ export const ActivityDetailsStep: React.FC<ActivityDetailsStepProps> = ({
   );
 
   const approvalItems = useMemo(() => getApprovalItems(), []);
-  const approvalValue: ApprovalOption = data.requiresApproval ? 'yes' : 'no';
+  const approvalValue: ApprovalOption = data.requiresApproval ? 'request' : 'free';
 
   return (
     <View style={[styles.container, { padding: theme.spacing.screenPaddingHorizontal }]}>
       <View style={{ gap: theme.spacing.xxxl }}>
         <PhotoPicker
           max={4}
-          label='Фотографии'
+          label="Фотографии"
           value={photoUrls}
           onChange={handlePhotosChange}
           onDragStateChange={(isDragging) => setScrollEnabled?.(!isDragging)}
@@ -89,7 +84,7 @@ export const ActivityDetailsStep: React.FC<ActivityDetailsStepProps> = ({
                 }
                 updateData({ isFree: false, price: parseInt(numeric, 10) || '' });
               }}
-              placeholder={"Бесплатно"}
+              placeholder="Бесплатно"
               keyboardType="number-pad"
               autoComplete="off"
               textContentType="none"
@@ -99,16 +94,16 @@ export const ActivityDetailsStep: React.FC<ActivityDetailsStepProps> = ({
               error={errors?.price}
             />
             <Button
-              title=''
+              title=""
               onPress={() => updateData({ isFree: true, price: '' })}
               icon={<BanknoteX size={theme.spacing.iconSize} color={isFree ? theme.colors.background : theme.colors.textSecondary} />}
               fullWidth={false}
-              size='small'
+              size="small"
               style={{
                 width: theme.spacing.inputHeight,
                 height: theme.spacing.inputHeight,
                 borderRadius: theme.spacing.radiusRound,
-                backgroundColor: isFree ? theme.colors.primary : theme.colors.surfaceVariant
+                backgroundColor: isFree ? theme.colors.primary : theme.colors.surfaceVariant,
               }}
               textStyle={{ display: 'none' }}
             />
@@ -120,10 +115,10 @@ export const ActivityDetailsStep: React.FC<ActivityDetailsStepProps> = ({
             {'Тип\nрегистрации'}
           </Text>
 
-          <ExpandableTabBar<'yes' | 'no'>
+          <ExpandableTabBar<'request' | 'free'>
             items={approvalItems}
             activeId={approvalValue}
-            onChange={(id) => updateData({ requiresApproval: id === 'yes' })}
+            onChange={(id) => updateData({ requiresApproval: id === 'request' })}
             circleSize={theme.spacing.iconButtonHeight}
             iconSize={theme.spacing.iconSizeMedium}
             pillStyle={{ height: theme.spacing.inputHeight, borderRadius: theme.spacing.radiusRound }}
@@ -146,7 +141,6 @@ export const ActivityDetailsStep: React.FC<ActivityDetailsStepProps> = ({
             activePillWidth={0.74}
           />
         </View>
-
       </View>
     </View>
   );
@@ -159,5 +153,5 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-  }
+  },
 });

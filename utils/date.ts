@@ -316,6 +316,25 @@ export const getHoursUntilEvent = (dateString: string): number => {
   return diffMs / (1000 * 60 * 60);
 };
 
+const pluralizeRu = (count: number, one: string, few: string, many: string): string => {
+  const mod10 = Math.abs(count) % 10;
+  const mod100 = Math.abs(count) % 100;
+
+  if (mod100 >= 11 && mod100 <= 14) {
+    return many;
+  }
+
+  if (mod10 === 1) {
+    return one;
+  }
+
+  if (mod10 >= 2 && mod10 <= 4) {
+    return few;
+  }
+
+  return many;
+};
+
 /**
  * Получает относительное время (например, "через 2 часа", "через 3 дня")
  */
@@ -328,16 +347,16 @@ export const getRelativeTime = (dateString: string): string => {
   
   if (hours < 1) {
     const minutes = Math.floor(hours * 60);
-    return `через ${minutes} ${minutes === 1 ? 'минуту' : minutes < 5 ? 'минуты' : 'минут'}`;
+    return `через ${minutes} ${pluralizeRu(minutes, 'минуту', 'минуты', 'минут')}`;
   }
   
   if (hours < 24) {
     const h = Math.floor(hours);
-    return `через ${h} ${h === 1 ? 'час' : h < 5 ? 'часа' : 'часов'}`;
+    return `через ${h} ${pluralizeRu(h, 'час', 'часа', 'часов')}`;
   }
   
   const days = Math.floor(hours / 24);
-  return `через ${days} ${days === 1 ? 'день' : days < 5 ? 'дня' : 'дней'}`;
+  return `через ${days} ${pluralizeRu(days, 'день', 'дня', 'дней')}`;
 };
 
 

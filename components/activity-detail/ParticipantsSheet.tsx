@@ -5,11 +5,11 @@ import { Avatar } from '@/components/ui/Avatar';
 import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
 import { useTheme } from '@/themes/useTheme';
 import type { Theme } from '@/themes/theme';
-import type { UserPublic } from '@/types';
+import type { PersonSummary } from './PeopleSummarySection';
 
 interface ParticipantsSheetProps {
   visible: boolean;
-  participants: UserPublic[];
+  participants: PersonSummary[];
   organizerId: string;
   onClose: () => void;
   onParticipantPress: (participantId: string) => void;
@@ -31,18 +31,21 @@ export function ParticipantsSheet({
         <View style={styles.participantsSheetGrid}>
           {participants.map((participant) => {
             const isOrganizer = participant.id === organizerId;
+            const isDeleted = Boolean(participant.isDeleted);
 
             return (
               <TouchableOpacity
                 key={participant.id}
                 activeOpacity={0.85}
-                style={styles.participantSheetCard}
+                disabled={isDeleted}
+                style={[styles.participantSheetCard, isDeleted && styles.deletedParticipant]}
                 onPress={() => onParticipantPress(participant.id)}
               >
                 <Avatar
                   name={participant.name}
                   size="medium"
-                  imageUrl={participant.avatar}
+                  imageUrl={participant.avatarUrl}
+                  isDeleted={isDeleted}
                 />
                 {isOrganizer ? (
                   <View style={[styles.participantSheetSticker, { backgroundColor: theme.colors.background }]}>
@@ -51,7 +54,13 @@ export function ParticipantsSheet({
                 ) : null}
                 <Text
                   numberOfLines={2}
-                  style={[styles.participantSheetName, { color: theme.colors.text, ...theme.typography.captionSmall }]}
+                  style={[
+                    styles.participantSheetName,
+                    {
+                      color: isDeleted ? theme.colors.textSecondary : theme.colors.text,
+                      ...theme.typography.captionSmall,
+                    },
+                  ]}
                 >
                   {participant.name}
                 </Text>
@@ -102,5 +111,8 @@ const createStyles = (theme: Theme) =>
     },
     participantSheetName: {
       textAlign: 'center',
+    },
+    deletedParticipant: {
+      opacity: 0.55,
     },
   });

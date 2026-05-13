@@ -4,11 +4,18 @@ import { Avatar } from '@/components/ui/Avatar';
 import { Rating } from '@/components/ui/Rating';
 import { useTheme } from '@/themes/useTheme';
 import type { Theme } from '@/themes/theme';
-import type { UserPublic } from '@/types';
+
+export interface PersonSummary {
+  id: string;
+  name: string;
+  avatarUrl?: string;
+  rating?: number;
+  isDeleted?: boolean;
+}
 
 interface PeopleSummarySectionProps {
-  organizer: UserPublic;
-  participantPreview: UserPublic[];
+  organizer: PersonSummary;
+  participantPreview: PersonSummary[];
   participantsCountLabel: string;
   onOrganizerPress: () => void;
   onParticipantsPress: () => void;
@@ -30,8 +37,18 @@ export function PeopleSummarySection({
 
   return (
     <View style={styles.container}>
-      <TouchableOpacity activeOpacity={0.85} style={styles.organizerButton} onPress={onOrganizerPress}>
-        <Avatar name={organizer.name} size="medium" imageUrl={organizer.avatar} />
+      <TouchableOpacity
+        activeOpacity={0.85}
+        disabled={organizer.isDeleted}
+        style={[styles.organizerButton, organizer.isDeleted && styles.deletedPerson]}
+        onPress={onOrganizerPress}
+      >
+        <Avatar
+          name={organizer.name}
+          size="medium"
+          imageUrl={organizer.avatarUrl}
+          isDeleted={organizer.isDeleted}
+        />
         <View style={styles.organizerContent}>
           <Text style={{ color: theme.colors.textSecondary, ...theme.typography.caption }}>Организатор</Text>
           <Text numberOfLines={1} style={{ color: theme.colors.text, ...theme.typography.bodyLargeBold }}>
@@ -44,7 +61,7 @@ export function PeopleSummarySection({
               </Text>
             </TouchableOpacity>
           ) : (
-            <Rating rating={organizer.rating} size={theme.spacing.iconSizeXSmall} variant="compact" />
+            <Rating rating={organizer.rating ?? 0} size={theme.spacing.iconSizeXSmall} variant="compact" />
           )}
         </View>
       </TouchableOpacity>
@@ -58,9 +75,11 @@ export function PeopleSummarySection({
                 key={participant.id}
                 name={participant.name}
                 size="small"
-                imageUrl={participant.avatar}
+                imageUrl={participant.avatarUrl}
+                isDeleted={participant.isDeleted}
                 style={[
                   styles.participantAvatar,
+                  participant.isDeleted && styles.deletedPerson,
                   {
                     marginLeft: index === 0 ? 0 : -theme.spacing.sm,
                     zIndex: participantPreview.length - index,
@@ -93,6 +112,9 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing.md,
+    },
+    deletedPerson: {
+      opacity: 0.55,
     },
     organizerContent: {
       flex: 1,

@@ -1,20 +1,10 @@
 import React, { useMemo, useState } from 'react';
-import {
-  Alert,
-  ImageBackground,
-  Linking,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Alert, Linking, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import {
-  Banknote,
   BadgeCheck,
+  Banknote,
   Bookmark,
   CalendarDays,
   Image as ImageIcon,
@@ -25,43 +15,65 @@ import {
 } from 'lucide-react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useAuth } from '@/contexts/AuthContext';
-import { useActivities } from '@/contexts/ActivitiesContext';
-import { useActivityParticipation } from '@/contexts/ActivityParticipationContext';
-import { useActivityRatings } from '@/contexts/ActivityRatingsContext';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
-import { Header } from '@/components/ui/Header';
+import { Header, type HeaderButton } from '@/components/ui/Header';
 import { PhotoViewerModal } from '@/components/ui/PhotoViewerModal';
 import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
-import { getHoursUntilEvent } from '@/utils/date';
-import { openExternalMap } from '@/utils/openSideMaps';
+import { formatActivityDate, formatTimeOnly, getRelativeTime } from '@/utils/date';
 import { createCommonStyles } from '@/styles/common';
 import type { Theme } from '@/themes/theme';
 import { useTheme } from '@/themes/useTheme';
-import { getActivityDetailState } from '@/components/activity-detail/helpers';
 import { ActivityDetailHero } from '@/components/activity-detail/ActivityDetailHero';
-import { PeopleSummarySection } from '@/components/activity-detail/PeopleSummarySection';
 import { LocationSection } from '@/components/activity-detail/LocationSection';
 import { ParticipantsSheet } from '@/components/activity-detail/ParticipantsSheet';
+import { PeopleSummarySection } from '@/components/activity-detail/PeopleSummarySection';
 import { RateActivitySheet } from '@/components/activity-detail/RateActivitySheet';
 import { RequestsSheet } from '@/components/activity-detail/RequestsSheet';
 import type { HeroChip } from '@/components/activity-detail/ActivityDetailHero';
-import { KUDAGO_ORGANIZER_ID } from '@/utils/activityUtils';
+import { useActivityDetails } from '@/hooks/queries/useActivityDetails';
+import { useActivityJoinRequests } from '@/hooks/queries/useActivityJoinRequests';
+import { useActivityParticipants } from '@/hooks/queries/useActivityParticipants';
+import { useApproveJoinRequest } from '@/hooks/mutations/useApproveJoinRequest';
+import { useCancelActivity } from '@/hooks/mutations/useCancelActivity';
+import { useCancelJoinRequest } from '@/hooks/mutations/useCancelJoinRequest';
+import { useDeclineOrganizership } from '@/hooks/mutations/useDeclineOrganizership';
+import { useJoinActivity } from '@/hooks/mutations/useJoinActivity';
+import { useLeaveActivity } from '@/hooks/mutations/useLeaveActivity';
+import { useRejectJoinRequest } from '@/hooks/mutations/useRejectJoinRequest';
+import { useSaveActivity } from '@/hooks/mutations/useSaveActivity';
+import { getApprovalItems, getGenderItems, getLevelItems } from '@/constants/activityPreferenceOptions';
+import { openExternalMap } from '@/utils/openSideMaps';
+import { getFileUrl } from '@/utils/files';
+import { CachedImage } from '@/components/ui/CachedImage';
+import { getActivityCategory, getAgeRangeLabel, isImportedActivity, toPersonSummary } from '@/utils/activityUtils';
+
+// todo: refactor
 
 export default function ActivityDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const activityId = Array.isArray(id) ? id[0] : id;
   const { currentUser } = useAuth();
-  const { allActivities, savedActivities, toggleSaveActivity, cancelActivity } = useActivities();
-  const { hasUserRated } = useActivityRatings();
-  const {
-    requestJoinActivity,
-    leaveActivity,
-    cancelJoinRequest,
-    approveJoinRequest,
-    rejectJoinRequest,
-    getParticipationStatus,
-  } = useActivityParticipation();
+  const activityQuery = useActivityDetails(activityId);
+  const activity = activityQuery.data;
+  const isOrganizer = Boolean(activity && currentUser && activity.organizer.id === currentUser.id);
+  const isImported = isImportedActivity(activity);
+
+  const participantsQuery = useActivityParticipants(
+    activityId,
+    { limit: 50 },
+    Boolean(activityId && activity && activity.participantsCount > activity.participantsPreview.length)
+  );
+
+  const joinActivity = useJoinActivity();
+  const leaveActivity = useLeaveActivity();
+  const cancelJoinRequest = useCancelJoinRequest();
+  const declineOrganizership = useDeclineOrganizership();
+  const cancelActivity = useCancelActivity();
+  const approveJoinRequest = useApproveJoinRequest();
+  const rejectJoinRequest = useRejectJoinRequest();
+  const saveActivity = useSaveActivity();
+
   const [isParticipantsSheetVisible, setIsParticipantsSheetVisible] = useState(false);
   const [isRequestsSheetVisible, setIsRequestsSheetVisible] = useState(false);
   const [isRateSheetVisible, setIsRateSheetVisible] = useState(false);
@@ -70,29 +82,33 @@ export default function ActivityDetailScreen() {
   const styles = useMemo(() => createStyles(theme), [theme]);
   const commonStyles = useMemo(() => createCommonStyles(theme), [theme]);
 
-  const activity = useMemo(() => allActivities.find((item) => item.id === activityId), [activityId, allActivities]);
-  const isKudagoActivity = Boolean(activity && (activity.organizer.id === KUDAGO_ORGANIZER_ID));
-
-  const detailState = useMemo(
-    () => (activity && currentUser ? getActivityDetailState(activity, currentUser.id, savedActivities) : null),
-    [activity, currentUser?.id, savedActivities]
+  const category = useMemo(() => getActivityCategory(activity), [activity?.categoryId]);
+  const subcategory = useMemo(
+    () => category.subcategories.find((item) => item.id === activity?.subcategoryId),
+    [activity?.subcategoryId, category.subcategories]
   );
-  const participationStatus =
-    activity && currentUser ? getParticipationStatus(activity.id, currentUser.id) : null;
-  const isParticipant = participationStatus === 'accepted' || participationStatus === 'attended';
-  const isPending = participationStatus === 'pending';
-  const isAttendanceMarked = participationStatus === 'attended';
-  const isActivityRated = Boolean(activity && currentUser && hasUserRated(activity.id, currentUser.id));
-  const shouldShowFooterAfterEnd =
-    isParticipant && (isAttendanceMarked || isActivityRated);
+
+  const policyFlags = activity?.policyFlags;
+  const canJoinActivity = Boolean(policyFlags?.canJoin);
+  const canLeaveActivity = Boolean(policyFlags?.canLeave);
+  const canCancelRequest = Boolean(policyFlags?.canCancelRequest);
+  const canManageRequests = Boolean(policyFlags?.canManageRequests);
+  const canRateActivity = Boolean(policyFlags?.canRate);
+  const canEditActivity = Boolean(policyFlags?.canEdit);
+  const canCancelActivity = Boolean(policyFlags?.canCancelActivity);
+
+  const joinRequestsQuery = useActivityJoinRequests(activityId, { limit: 50 }, canManageRequests);
+  const isParticipant =
+    activity?.participationStatus === 'accepted' || activity?.participationStatus === 'attended';
+  const isAttendanceMarked = activity?.participationStatus === 'attended';
 
   const heroChips = useMemo<HeroChip[]>(() => {
-    if (!activity || !detailState) return [];
+    if (!activity) return [];
 
     const items: HeroChip[] = [
       {
-        label: activity.subcategory?.name ?? activity.category.name,
-        icon: renderCategoryIcon(activity.category, theme.spacing.iconSizeSmall - theme.spacing.borderWidthThick),
+        label: subcategory?.name ?? category.name,
+        icon: renderCategoryIcon(category, theme.spacing.iconSizeSmall - theme.spacing.borderWidthThick),
         selected: true,
       },
       {
@@ -129,14 +145,10 @@ export default function ActivityDetailScreen() {
       });
     }
 
-    if (detailState.ageLabel) {
-      items.push({ label: detailState.ageLabel });
-    }
-
     return items;
-  }, [activity, detailState?.ageLabel, theme]);
+  }, [activity, category, subcategory?.name, theme]);
 
-  if (!activity || !currentUser || !detailState) {
+  if (!activity || !currentUser) {
     return (
       <SafeAreaView style={commonStyles.container} edges={['top', 'bottom']}>
         <Header showBackButton title="Активность" />
@@ -148,7 +160,7 @@ export default function ActivityDetailScreen() {
                 color={theme.colors.textSecondary}
               />
             }
-            title="Активность не найдена"
+            title={activityQuery.isLoading ? 'Загружаем...' : 'Активность не найдена'}
             description="Возможно, она была удалена или ссылка больше не актуальна"
           />
         </View>
@@ -156,74 +168,122 @@ export default function ActivityDetailScreen() {
     );
   }
 
-  const handleShare = async () => {
-    try {
-      await Share.share({
-        title: activity.title,
-        message: detailState.shareMessage,
-      });
-    } catch (error) {
-      console.log('Share error', error);
-    }
-  };
+  const isPast = new Date(activity.endAt).getTime() < Date.now();
+  const relativeTime = getRelativeTime(activity.startAt);
+  const dateTimeSummary = `${formatActivityDate(activity.startAt, activity.timeZone)} - ${formatTimeOnly(activity.endAt, activity.timeZone)}`;
+  const locationSummary =
+    activity.format === 'online'
+      ? 'Online'
+      : activity.location.name || activity.location.address;
+  const participantsLabel = activity.preferences?.maxParticipants
+    ? `${activity.participantsCount}/${activity.preferences.maxParticipants}`
+    : `${activity.participantsCount}/∞`;
 
-  const handleEditActivity = () => {
-    Alert.alert('Редактирование', 'Экран редактирования активности пока не подключен.');
+  const photoUrls = activity.photoFileIds.map(getFileUrl).filter((uri): uri is string => Boolean(uri));
+  const coverPhotoUri = getFileUrl(activity.coverPhotoFileId ?? activity.photoFileIds?.[0]);
+
+  const organizerSummary = toPersonSummary(activity.organizer);
+  const previewParticipants = activity.participantsPreview.map(toPersonSummary).slice(0, 3);
+
+  const sheetParticipantsSource = participantsQuery.data?.items?.length
+    ? participantsQuery.data.items.map((item) => item.user)
+    : activity.participantsPreview;
+  const sheetParticipants = [
+    organizerSummary,
+    ...sheetParticipantsSource
+      .filter((participant) => participant.id !== activity.organizer.id)
+      .map(toPersonSummary),
+  ];
+  const joinRequests = (joinRequestsQuery.data?.items ?? []).map((item) => toPersonSummary(item.user));
+  const ageLabel = getAgeRangeLabel(activity.preferences?.ageFrom, activity.preferences?.ageTo);
+  const levelLabel = activity.preferences?.level
+    ? getLevelItems().find((item) => item.id === activity.preferences?.level)?.label
+    : null;
+  const genderLabel = activity.preferences?.gender
+    ? getGenderItems().find((item) => item.id === activity.preferences?.gender)?.label
+    : null;
+  const approvalLabel = getApprovalItems().find(
+    (item) => item.id === (activity.requiresApproval ? 'request' : 'free')
+  )?.label;
+  const participationCriteria = [
+    {
+      label: 'Тип регистрации',
+      value: approvalLabel ?? (activity.requiresApproval ? 'По заявке' : 'Свободная'),
+    },
+    ...(levelLabel ? [{ label: 'Уровень навыков', value: levelLabel }] : []),
+    ...(ageLabel ? [{ label: 'Возраст', value: ageLabel }] : []),
+    ...(genderLabel ? [{ label: 'Пол', value: genderLabel }] : []),
+  ];
+  const footerMeta = isOrganizer ? 'Вы организатор' : isParticipant ? 'Вы участвуете' : '';
+  const shouldShowFooter =
+    isImported ||
+    canJoinActivity ||
+    canLeaveActivity ||
+    canCancelRequest ||
+    canManageRequests ||
+    canRateActivity ||
+    isAttendanceMarked;
+  const participantActionTitle = canRateActivity ? 'Оценить' : isAttendanceMarked ? 'Оценено' : 'QR-код';
+  const isParticipantActionDisabled = isAttendanceMarked && !canRateActivity;
+  const joinButtonTitle = isPast
+    ? 'Событие завершено'
+    : activity.isFull
+      ? 'Свободных мест нет'
+      : activity.requiresApproval
+        ? 'Подать заявку'
+        : 'Присоединиться';
+
+  const handleShare = async () => {
+    await Share.share({
+      title: activity.title,
+      message: `${activity.title}\n${dateTimeSummary}`,
+    });
   };
 
   const handleJoin = () => {
-    if (
-      detailState.isCancelled ||
-      detailState.isPast ||
-      detailState.isFull ||
-      isParticipant ||
-      isPending
-    ) {
-      return;
-    }
-
-    void requestJoinActivity(activity.id);
+    if (!canJoinActivity) return;
+    joinActivity.mutate({ activityId: activity.id, requiresApproval: activity.requiresApproval });
   };
 
   const handleLeave = () => {
-    if (!isParticipant) return;
+    if (!canLeaveActivity) return;
 
-    const hoursUntilEvent = getHoursUntilEvent(activity.startAt);
-    const hasShortNotice = hoursUntilEvent < 2 && hoursUntilEvent > 0;
-
-    Alert.alert(
-      hasShortNotice ? 'Отменить с предупреждением' : 'Отменить участие',
-      hasShortNotice
-        ? 'До начала осталось меньше 2 часов. Отмена может повлиять на ваш рейтинг.'
-        : 'Вы уверены, что хотите выйти из этой активности?',
-      [
-        { text: 'Назад', style: 'cancel' },
-        { text: 'Выйти', style: 'destructive', onPress: () => leaveActivity(activity.id) },
-      ]
-    );
-  };
-
-  const handleCancelRequest = () => {
-    if (!isPending) return;
-
-    Alert.alert('Отменить заявку', 'Удалить вашу заявку на участие?', [
-      { text: 'Нет', style: 'cancel' },
-      { text: 'Да', style: 'destructive', onPress: () => cancelJoinRequest(activity.id) },
+    Alert.alert('Отменить участие', 'Вы уверены, что хотите выйти из этой активности?', [
+      { text: 'Назад', style: 'cancel' },
+      { text: 'Выйти', style: 'destructive', onPress: () => leaveActivity.mutate(activity.id) },
     ]);
   };
 
-  const handleCancelActivity = () => {
-    Alert.alert('Отменить активность', 'Активность будет отменена для всех участников.', [
+  const handleCancelRequest = () => {
+    if (!canCancelRequest) return;
+    cancelJoinRequest.mutate(activity.id);
+  };
+
+  const handleOrganizerLeaveAction = () => {
+    if (!canCancelActivity) return;
+
+    Alert.alert('Передать или отменить', 'Можно передать роль организатора следующему участнику. Если участников нет, активность будет отменена.', [
       { text: 'Назад', style: 'cancel' },
+      {
+        text: 'Передать',
+        onPress: async () => {
+          await declineOrganizership.mutateAsync(activity.id);
+          router.back();
+        },
+      },
       {
         text: 'Отменить',
         style: 'destructive',
-        onPress: () => {
-          cancelActivity(activity.id);
+        onPress: async () => {
+          await cancelActivity.mutateAsync(activity.id);
           router.back();
         },
       },
     ]);
+  };
+
+  const handleEditActivity = () => {
+    Alert.alert('Редактирование', 'Экран редактирования активности пока не подключен.');
   };
 
   const handleBecomeOrganizer = () => {
@@ -232,15 +292,47 @@ export default function ActivityDetailScreen() {
   };
 
   const handleOpenSource = async () => {
-    if (!activity?.siteUrl) return;
-
-    try {
-      await Linking.openURL(activity.siteUrl);
-    } catch (error) {
-    }
+    if (('siteUrl' in activity) && activity?.siteUrl) {
+      try {
+        await Linking.openURL(activity.siteUrl as string);
+      } catch (error) {
+      }
+    } else return;
   };
 
-  const navigateToUser = (userId: string) => router.push(`/user/${userId}`);
+  const navigateToUser = (person: { id: string; isDeleted?: boolean }) => {
+    if (person.isDeleted) return;
+    router.push(`/user/${person.id}`);
+  };
+
+  const headerRightButtons: HeaderButton[] = [
+    {
+      icon: <Bookmark size={theme.spacing.iconSize} fill={activity.isSaved ? theme.colors.text : 'none'} />,
+      onPress: () => saveActivity.mutate({ activityId: activity.id, saved: activity.isSaved }),
+      variant: 'surface',
+    },
+    {
+      icon: <Share2 size={theme.spacing.iconSize} />,
+      onPress: () => void handleShare(),
+      variant: 'surface',
+    },
+  ];
+
+  if (canEditActivity) {
+    headerRightButtons.push({
+      icon: <Pencil size={theme.spacing.iconSizeMedium} />,
+      onPress: handleEditActivity,
+      variant: 'primary',
+    });
+  }
+
+  if (canCancelActivity) {
+    headerRightButtons.push({
+      icon: <Ionicons name="close" size={theme.spacing.iconSize} />,
+      onPress: handleOrganizerLeaveAction,
+      variant: 'primary',
+    });
+  }
 
   return (
     <View style={commonStyles.container}>
@@ -248,32 +340,7 @@ export default function ActivityDetailScreen() {
         <Header
           showBackButton
           title=""
-          rightButtons={[
-            {
-              icon: <Bookmark size={theme.spacing.iconSize} fill={detailState.isSaved ? theme.colors.text : 'none'} />,
-              onPress: () => toggleSaveActivity(activity.id),
-              variant: 'surface',
-            },
-            {
-              icon: <Share2 size={theme.spacing.iconSize} />,
-              onPress: handleShare,
-              variant: 'surface',
-            },
-            ...(detailState.isOrganizer && !detailState.isPast
-              ? [
-                {
-                  icon: <Pencil size={theme.spacing.iconSizeMedium} />,
-                  onPress: handleEditActivity,
-                  variant: 'primary' as const,
-                },
-                {
-                  icon: <Ionicons name="close" size={theme.spacing.iconSize} />,
-                  onPress: handleCancelActivity,
-                  variant: 'primary' as const,
-                },
-              ]
-              : []),
-          ]}
+          rightButtons={headerRightButtons}
         />
       </SafeAreaView>
 
@@ -285,22 +352,22 @@ export default function ActivityDetailScreen() {
       >
         <ActivityDetailHero
           title={activity.title}
-          photoUri={detailState.photoUri}
-          relativeTime={detailState.relativeTime}
-          isCancelled={detailState.isCancelled}
+          photoUri={coverPhotoUri}
+          relativeTime={relativeTime}
+          isCancelled={activity.status === 'cancelled'}
           heroChips={heroChips}
-          onPress={detailState.photoUrls.length > 0 ? () => setSelectedPhotoIndex(0) : undefined}
+          onPress={photoUrls.length > 0 ? () => setSelectedPhotoIndex(0) : undefined}
         />
 
         <View style={styles.contentContainer}>
           <PeopleSummarySection
-            organizer={activity.organizer}
-            participantPreview={detailState.participantPreview}
-            participantsCountLabel={detailState.participantsCountLabel}
-            onOrganizerPress={isKudagoActivity ? () => { } : () => navigateToUser(activity.organizer.id)}
+            organizer={organizerSummary}
+            participantPreview={previewParticipants}
+            participantsCountLabel={participantsLabel}
+            onOrganizerPress={isImported ? () => { } : () => navigateToUser(organizerSummary)}
             onParticipantsPress={() => setIsParticipantsSheetVisible(true)}
-            organizerActionLabel={isKudagoActivity ? 'Открыть на KudaGo' : undefined}
-            onOrganizerActionPress={isKudagoActivity ? handleOpenSource : undefined}
+            organizerActionLabel={isImported ? 'Открыть на KudaGo' : undefined}
+            onOrganizerActionPress={isImported ? handleOpenSource : undefined}
           />
 
           <View style={styles.sectionBlock}>
@@ -308,11 +375,9 @@ export default function ActivityDetailScreen() {
             <View style={styles.detailList}>
               <View style={styles.detailRow}>
                 <CalendarDays size={theme.spacing.iconSizeMedium} color={theme.colors.textSecondary} />
-                <View style={styles.detailRowContent}>
-                  <Text style={[styles.detailRowText, { color: theme.colors.text, ...theme.typography.body }]}>
-                    {detailState.dateTimeSummary}
-                  </Text>
-                </View>
+                <Text style={[styles.detailRowText, { color: theme.colors.text, ...theme.typography.body }]}>
+                  {dateTimeSummary}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 {activity.format === 'online' ? (
@@ -320,19 +385,15 @@ export default function ActivityDetailScreen() {
                 ) : (
                   <MapPinIcon size={theme.spacing.iconSizeMedium} color={theme.colors.textSecondary} />
                 )}
-                <View style={styles.detailRowContent}>
-                  <Text style={[styles.detailRowText, { color: theme.colors.text, ...theme.typography.body }]}>
-                    {detailState.locationSummary}
-                  </Text>
-                </View>
+                <Text style={[styles.detailRowText, { color: theme.colors.text, ...theme.typography.body }]}>
+                  {locationSummary}
+                </Text>
               </View>
               <View style={styles.detailRow}>
                 <Banknote size={theme.spacing.iconSizeMedium} color={theme.colors.textSecondary} />
-                <View style={styles.detailRowContent}>
-                  <Text style={[styles.detailRowText, { color: theme.colors.text, ...theme.typography.body }]}>
-                    {detailState.priceSummary}
-                  </Text>
-                </View>
+                <Text style={[styles.detailRowText, { color: theme.colors.text, ...theme.typography.body }]}>
+                  {activity.price > 0 ? `от ${activity.price} ₽` : 'Бесплатно'}
+                </Text>
               </View>
             </View>
             {activity.description ? (
@@ -356,7 +417,7 @@ export default function ActivityDetailScreen() {
             ) : null}
           </View>
 
-          {detailState.photoUrls.length > 1 ? (
+          {photoUrls.length > 1 ? (
             <View style={styles.sectionBlock}>
               <Text style={{ color: theme.colors.text, ...theme.typography.h4 }}>Фото</Text>
               <ScrollView
@@ -365,18 +426,15 @@ export default function ActivityDetailScreen() {
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.galleryScrollContent}
               >
-                {detailState.photoUrls.map((photoUrl, index) => (
+                {photoUrls.map((photoUrl, index) => (
                   <Pressable
                     key={`${photoUrl}-${index}`}
                     onPress={() => setSelectedPhotoIndex(index)}
                     style={styles.galleryImageButton}
                   >
-                    <ImageBackground
-                      source={{ uri: photoUrl }}
-                      resizeMode="cover"
-                      style={styles.galleryImage}
-                      imageStyle={styles.galleryImageInner}
-                    />
+                    <View style={styles.galleryImage}>
+                      <CachedImage uri={photoUrl} style={styles.galleryImageInner} />
+                    </View>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -385,7 +443,7 @@ export default function ActivityDetailScreen() {
 
           <View style={styles.criteriaList}>
             <Text style={{ color: theme.colors.text, ...theme.typography.h4 }}>Детали</Text>
-            {detailState.participationCriteria.map((item) => (
+            {participationCriteria.map((item) => (
               <View key={item.label} style={styles.criteriaRow}>
                 <Text style={{ color: theme.colors.textSecondary, ...theme.typography.body }}>{item.label}:</Text>
                 <Text style={[styles.criteriaValue, { color: theme.colors.text, ...theme.typography.bodyBold }]}>
@@ -397,7 +455,7 @@ export default function ActivityDetailScreen() {
         </View>
       </ScrollView>
 
-      {(!detailState.isCancelled && (!detailState.isPast || shouldShowFooterAfterEnd)) ? (
+      {shouldShowFooter ? (
         <SafeAreaView
           edges={['bottom']}
           style={[
@@ -411,13 +469,13 @@ export default function ActivityDetailScreen() {
             },
           ]}
         >
-          {detailState.footerMeta &&
+          {footerMeta ? (
             <Text style={{ color: theme.colors.textSecondary, ...theme.typography.caption, marginBottom: theme.spacing.sm }}>
-              {detailState.footerMeta}
+              {footerMeta}
             </Text>
-          }
+          ) : null}
 
-          {isKudagoActivity ? (
+          {isImported ? (
             <Button
               title="Стать организатором"
               variant="primary"
@@ -425,7 +483,7 @@ export default function ActivityDetailScreen() {
               fullWidth
               onPress={handleBecomeOrganizer}
             />
-          ) : detailState.isOrganizer ? (
+          ) : canManageRequests ? (
             <View style={styles.footerButtons}>
               <Button
                 title="QR-сканер"
@@ -434,7 +492,7 @@ export default function ActivityDetailScreen() {
                 style={{ flex: 1 }}
                 onPress={() => router.push(`/qr-scan?activityId=${activity.id}`)}
               />
-              {activity.pendingRequests.length > 0 ? (
+              {joinRequests.length > 0 ? (
                 <Button
                   title="Заявки"
                   variant="secondary"
@@ -447,21 +505,20 @@ export default function ActivityDetailScreen() {
           ) : isParticipant ? (
             <View style={styles.footerButtons}>
               <Button
-                title={isActivityRated ? 'Оценено' : isAttendanceMarked ? 'Оценить' : 'QR-код'}
+                title={participantActionTitle}
                 variant="primary"
                 size="medium"
                 style={{ flex: 1 }}
-                disabled={isActivityRated}
+                disabled={isParticipantActionDisabled}
                 onPress={() =>
-                  isActivityRated
-                    ? undefined
-                    : isAttendanceMarked
-                      ? setIsRateSheetVisible(true)
-                      : router.push(`/my-qr?activityId=${activity.id}`)
+                  canRateActivity
+                    ? setIsRateSheetVisible(true)
+                    : router.push(`/my-qr?activityId=${activity.id}`)
                 }
               />
-              {!isActivityRated && !isAttendanceMarked ? (
-                <Button title="Выйти"
+              {canLeaveActivity ? (
+                <Button
+                  title="Выйти"
                   variant="secondary"
                   size="medium"
                   style={{ flex: 1 }}
@@ -469,7 +526,7 @@ export default function ActivityDetailScreen() {
                 />
               ) : null}
             </View>
-          ) : isPending ? (
+          ) : canCancelRequest ? (
             <Button
               title="Отменить заявку"
               variant="secondary"
@@ -479,11 +536,11 @@ export default function ActivityDetailScreen() {
             />
           ) : (
             <Button
-              title={detailState.joinButtonTitle}
+              title={joinButtonTitle}
               variant="primary"
               size="medium"
               fullWidth
-              disabled={detailState.isCancelled || detailState.isPast || detailState.isFull}
+              disabled={!canJoinActivity}
               onPress={handleJoin}
             />
           )}
@@ -492,31 +549,34 @@ export default function ActivityDetailScreen() {
 
       <ParticipantsSheet
         visible={isParticipantsSheetVisible}
-        participants={detailState.participantsSheetUsers}
+        participants={sheetParticipants}
         organizerId={activity.organizer.id}
         onClose={() => setIsParticipantsSheetVisible(false)}
         onParticipantPress={(participantId) => {
+          const participant = sheetParticipants.find((item) => item.id === participantId);
+          if (participant?.isDeleted) return;
           setIsParticipantsSheetVisible(false);
-          navigateToUser(participantId);
+          router.push(`/user/${participantId}`);
         }}
       />
+
+      <RequestsSheet
+        visible={isRequestsSheetVisible}
+        requests={joinRequests}
+        onClose={() => setIsRequestsSheetVisible(false)}
+        onReject={(userId) => rejectJoinRequest.mutate({ activityId: activity.id, userId })}
+        onApprove={(userId) => approveJoinRequest.mutate({ activityId: activity.id, userId })}
+      />
+
       <RateActivitySheet
         visible={isRateSheetVisible}
         activity={activity}
         onClose={() => setIsRateSheetVisible(false)}
       />
 
-      <RequestsSheet
-        visible={isRequestsSheetVisible}
-        requests={activity.pendingRequests}
-        onClose={() => setIsRequestsSheetVisible(false)}
-        onReject={(userId) => rejectJoinRequest(activity.id, userId)}
-        onApprove={(userId) => approveJoinRequest(activity.id, userId)}
-      />
-
       <PhotoViewerModal
         visible={selectedPhotoIndex !== null}
-        photos={detailState.photoUrls}
+        photos={photoUrls}
         initialIndex={selectedPhotoIndex ?? 0}
         onClose={() => setSelectedPhotoIndex(null)}
       />
@@ -541,11 +601,6 @@ const createStyles = (theme: Theme) =>
       flexDirection: 'row',
       alignItems: 'center',
       gap: theme.spacing.md,
-    },
-    detailRowContent: {
-      flex: 1,
-      minWidth: 0,
-      justifyContent: 'center',
     },
     detailRowText: {
       flex: 1,
@@ -586,6 +641,8 @@ const createStyles = (theme: Theme) =>
       overflow: 'hidden',
     },
     galleryImageInner: {
+      width: '100%',
+      height: '100%',
       borderRadius: theme.spacing.radiusXLarge,
     },
     footer: {

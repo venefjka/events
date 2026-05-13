@@ -4,19 +4,19 @@ import { Star } from 'lucide-react-native';
 import { BottomSheetModal } from '@/components/ui/BottomSheetModal';
 import { Button } from '@/components/ui/Button';
 import { FormField } from '@/components/forms/FormField';
-import { useActivityRatings } from '@/contexts/ActivityRatingsContext';
+import { useRateActivity } from '@/hooks/mutations/useRateActivity';
 import { useTheme } from '@/themes/useTheme';
 import type { Theme } from '@/themes/theme';
-import type { Activity } from '@/types';
+import type { ActivityDetailDto } from '@/types/dto';
 
 interface RateActivitySheetProps {
   visible: boolean;
-  activity: Activity;
+  activity: ActivityDetailDto;
   onClose: () => void;
 }
 
 export function RateActivitySheet({ visible, activity, onClose }: RateActivitySheetProps) {
-  const { rateActivity } = useActivityRatings();
+  const rateActivityMutation = useRateActivity();
   const theme = useTheme();
   const styles = createStyles(theme);
   const [rating, setRating] = useState<number>(0);
@@ -40,7 +40,11 @@ export function RateActivitySheet({ visible, activity, onClose }: RateActivitySh
     setIsSubmitting(true);
 
     try {
-      await rateActivity(activity.id, rating, comment.trim() || undefined);
+      await rateActivityMutation.mutateAsync({
+        activityId: activity.id,
+        rating,
+        comment: comment.trim() || undefined,
+      });
       Alert.alert('Спасибо!', 'Ваш отзыв поможет другим пользователям', [
         { text: 'OK', onPress: onClose },
       ]);

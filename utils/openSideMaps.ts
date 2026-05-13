@@ -4,7 +4,7 @@ interface OpenExternalMapOptions {
   latitude: number;
   longitude: number;
   address: string;
-  name?: string;
+  name?: string | null;
   fallbackLabel: string;
 }
 

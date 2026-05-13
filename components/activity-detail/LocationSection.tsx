@@ -6,17 +6,19 @@ import { Card } from '@/components/ui/Card';
 import { MapPin } from '@/components/ui/MapPin';
 import { useTheme } from '@/themes/useTheme';
 import type { Theme } from '@/themes/theme';
-import type { Activity } from '@/types';
+import { categories } from '@/constants/categories';
 import { darkMapStyle } from '@/constants/mapStyles';
+import type { ActivityDetailDto } from '@/types/dto';
 
 interface LocationSectionProps {
-  activity: Activity;
+  activity: ActivityDetailDto;
   onPress: () => void;
 }
 
 export function LocationSection({ activity, onPress }: LocationSectionProps) {
   const theme = useTheme();
   const styles = createStyles(theme);
+  const category = categories.find((item) => item.id === activity.categoryId) ?? categories[0];
 
   return (
     <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
@@ -44,7 +46,7 @@ export function LocationSection({ activity, onPress }: LocationSectionProps) {
                 latitude: activity.location.latitude,
                 longitude: activity.location.longitude,
               }}
-              category={activity.category}
+              category={category}
             />
           </MapView>
           <LinearGradient

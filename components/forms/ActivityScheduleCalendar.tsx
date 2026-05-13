@@ -37,6 +37,7 @@ type BaseCalendarProps = {
   startDate?: Date;
   endDate?: Date;
   headerVariant?: CalendarHeaderVariant;
+  allowPastDates?: boolean;
 };
 
 type CalendarInputsProps = {
@@ -44,6 +45,10 @@ type CalendarInputsProps = {
   duration: CalendarDuration;
   showInputs?: boolean;
   showTimeInputs?: boolean;
+  inputLabels?: {
+    start: string;
+    end: string;
+  };
   startDateValue: string;
   endDateValue: string;
   startTimeValue: string;
@@ -151,6 +156,10 @@ type ScheduleInputsSectionProps = {
   isOpen: boolean;
   showTimeInputs: boolean;
   inputsMaxHeight: number;
+  inputLabels: {
+    start: string;
+    end: string;
+  };
   startDateValue: string;
   endDateValue: string;
   startTimeValue: string;
@@ -170,6 +179,7 @@ const ScheduleInputsSection: React.FC<ScheduleInputsSectionProps> = ({
   isOpen,
   showTimeInputs,
   inputsMaxHeight,
+  inputLabels,
   startDateValue,
   endDateValue,
   startTimeValue,
@@ -215,7 +225,7 @@ const ScheduleInputsSection: React.FC<ScheduleInputsSectionProps> = ({
               marginTop: theme.spacing.lg,
             }}
           >
-            Начало
+            {inputLabels.start}
           </Text>
 
           <FormField
@@ -253,7 +263,7 @@ const ScheduleInputsSection: React.FC<ScheduleInputsSectionProps> = ({
               marginTop: theme.spacing.lg,
             }}
           >
-            Конец
+            {inputLabels.end}
           </Text>
 
           <FormField
@@ -293,11 +303,12 @@ export const ActivityScheduleCalendar: React.FC<ActivityScheduleCalendarProps> =
   startDate,
   endDate,
   headerVariant = 'custom',
+  allowPastDates = false,
   ...rest
 }) => {
   const theme = useTheme();
   const defaultStyles = useDefaultStyles();
-  const minDate = useMemo(() => toStartOfDay(new Date()), []);
+  const minDate = useMemo(() => (allowPastDates ? undefined : toStartOfDay(new Date())), [allowPastDates]);
   const startDateForPicker = useMemo(
     () => (startDate ? toStartOfDay(startDate) : undefined),
     [startDate]
@@ -580,6 +591,7 @@ export const ActivityScheduleCalendar: React.FC<ActivityScheduleCalendarProps> =
           isOpen={isOpen}
           showTimeInputs={showTimeInputs}
           inputsMaxHeight={inputsMaxHeight}
+          inputLabels={inputsProps?.inputLabels ?? { start: 'Начало', end: 'Конец' }}
           startDateValue={inputsProps?.startDateValue ?? ''}
           endDateValue={inputsProps?.endDateValue ?? ''}
           startTimeValue={inputsProps?.startTimeValue ?? ''}

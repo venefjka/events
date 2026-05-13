@@ -1,7 +1,8 @@
 ﻿import React from 'react';
 import { Dimensions, StyleSheet, View } from 'react-native';
 import { useTheme } from '@/themes/useTheme';
-import { Activity, ActivityCategory, UserRecord } from '@/types';
+import { ActivityCardModel, ActivityCategory } from '@/types';
+import type { UserSnippetDto } from '@/types/dto';
 import { ActivityCard } from '@/components/cards/ActivityCard';
 import { CardStack } from '@/components/ui/CardStack';
 import { buildDateTimeWithTimeZone } from '@/utils/date';
@@ -11,7 +12,7 @@ interface ActivityPreviewStepProps {
   data: any;
   updateData: (data: any) => void;
   categories: ActivityCategory[];
-  currentUser: UserRecord;
+  currentUser: UserSnippetDto;
   setScrollEnabled?: (enabled: boolean) => void;
 }
 
@@ -29,7 +30,6 @@ export const ActivityPreviewStep: React.FC<ActivityPreviewStepProps> = ({
   const stackContainerWidth = screenWidth - theme.spacing.screenPaddingHorizontal * 2;
   const cardWidth = screenWidth - theme.spacing.screenPaddingHorizontal * 2;
   const cardsGap = theme.spacing.xl;
-  const listGap = cardsGap;
 
   const category = categories.find((cat) => cat.id === data.categoryId);
   const subcategory = category?.subcategories.find((sub) => sub.id === data.subcategoryId);
@@ -82,36 +82,31 @@ export const ActivityPreviewStep: React.FC<ActivityPreviewStepProps> = ({
     return result;
   };
 
-  const baseActivity: Activity = {
+  const baseActivity: ActivityCardModel = {
     id: 'preview-activity',
     title: String(data.title).trim(),
-    description: String(data.description || '').trim(),
     categoryId: category?.id ?? categories[0].id,
-    subcategoryId: subcategory?.id,
-    category: category || categories[0],
-    subcategory,
-    organizerId: currentUser.id,
+    subcategoryId: subcategory?.id ?? categories[0].subcategories[0].id,
+    coverPhotoFileId: data.photo,
     organizer: currentUser,
     format: data.format || 'offline',
     status: data.status,
     location: {
       latitude: data.format === 'online'
         ? 0
-        : data.location?.latitude ?? currentUser.cityPlace.latitude,
+        : data.location?.latitude ?? 0,
       longitude: data.format === 'online'
         ? 0
-        : data.location?.longitude ?? currentUser.cityPlace.longitude,
+        : data.location?.longitude ?? 0,
       address: data.format === 'online' ? 'Online' : data.address,
-      settlement: data.format === 'online'
+      name: data.format === 'online'
         ? undefined
-        : data.location?.settlement || currentUser.cityPlace.settlement,
+        : data.name || undefined,
     },
     startAt: startDateTime.toISOString(),
     endAt: endDateTime.toISOString(),
     timeZone,
-    currentParticipants: [currentUser],
-    pendingRequests: [],
-    attendedUsers: [],
+    participantsCount: 1,
     preferences: {
       gender: data.preferredGender === 'any' ? undefined : data.preferredGender,
       ageFrom,
@@ -120,11 +115,9 @@ export const ActivityPreviewStep: React.FC<ActivityPreviewStepProps> = ({
       maxParticipants,
     },
     requiresApproval: Boolean(data.requiresApproval),
-    photoUrls: data.photoUrls?.length ? data.photoUrls : data.photoUrl ? [data.photoUrl] : undefined,
     price: data.isFree ? 0 : Number(data.price) || 0,
-    ratings: [],
   };
-  const sharedPhotoUri = baseActivity.photoUrls?.[0];
+  const sharedPhotoUri = data.photoUrl;
 
   const shouldRepeat = data.isRepeating === 'yes' && data.endRepeatDate?.trim();
   const repeatEndDateTime = shouldRepeat

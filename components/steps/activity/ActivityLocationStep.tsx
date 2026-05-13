@@ -27,7 +27,7 @@ export const ActivityLocationStep: React.FC<ActivityLocationStepProps> = ({
 
   if (!currentUser) return null;
 
-  const fallbackLocation = currentUser.cityPlace;
+  const fallbackLocation = currentUser.city;
 
   const location = data.location ?? fallbackLocation;
   const [isSearching, setIsSearching] = React.useState(false);

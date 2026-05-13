@@ -10,7 +10,6 @@ import {
 import MapView, { PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { ChevronUp, ChevronDown, X } from 'lucide-react-native';
 
-import { Activity } from '@/types';
 import { useTheme } from '@/themes/useTheme';
 import { darkMapStyle } from '@/constants/mapStyles';
 import { useAuth } from '@/contexts/AuthContext';
@@ -29,9 +28,11 @@ import {
     regionsAreAlmostEqual,
     MIN_CLUSTER_ZOOM_DELTA,
 } from '@/utils/mapClusterUtils';
+import { ActivityListItemDto } from '@/types';
+import { getActivityCategory } from '@/utils/activityUtils';
 
 interface MapSectionProps {
-    activities: Activity[];
+    activities: ActivityListItemDto[];
     isMapExpanded: boolean;
     mapHeight: Animated.Value;
     centerLatitude?: number | null;
@@ -57,20 +58,19 @@ export const MapSection: React.FC<MapSectionProps> = ({
     const mapRef = useRef<MapView>(null);
     const hasMountedRef = useRef(false);
     const { width: windowWidth, height: windowHeight } = useWindowDimensions();
-
-    const cityPlace = currentUser?.cityPlace;
+    const city = currentUser?.city;
 
     const initialRegion = useMemo(
         () =>
             getInitialRegion({
                 centerLatitude,
                 centerLongitude,
-                fallbackLatitude: cityPlace?.latitude,
-                fallbackLongitude: cityPlace?.longitude,
+                fallbackLatitude: city?.latitude,
+                fallbackLongitude: city?.longitude,
                 latitudeDelta: 0.2,
                 longitudeDelta: 0.1,
             }),
-        [centerLatitude, centerLongitude, cityPlace?.latitude, cityPlace?.longitude]
+        [centerLatitude, centerLongitude, city?.latitude, city?.longitude]
     );
 
     const [mapRegion, setMapRegion] = useState<MapRegion>(initialRegion);
@@ -149,8 +149,8 @@ export const MapSection: React.FC<MapSectionProps> = ({
             return;
         }
 
-        const latitude = centerLatitude ?? cityPlace?.latitude;
-        const longitude = centerLongitude ?? cityPlace?.longitude;
+        const latitude = centerLatitude ?? city?.latitude;
+        const longitude = centerLongitude ?? city?.longitude;
 
         if (latitude == null || longitude == null) {
             return;
@@ -169,8 +169,8 @@ export const MapSection: React.FC<MapSectionProps> = ({
     }, [
         centerLatitude,
         centerLongitude,
-        cityPlace?.latitude,
-        cityPlace?.longitude,
+        city?.latitude,
+        city?.longitude,
         setRegionIfChanged,
     ]);
 
@@ -265,7 +265,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
                     <MapPin
                         key={item.id}
                         coordinate={item.coordinate}
-                        category={item.isCluster ? item.activities[0].category : item.activity.category}
+                        category={getActivityCategory(item.isCluster ? item.activities[0] : item.activity)}
                         badgeCount={item.isCluster ? item.badgeCount : undefined}
                         isCluster={item.isCluster}
                         onPress={() => {
