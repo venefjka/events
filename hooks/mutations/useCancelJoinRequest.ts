@@ -1,0 +1,12 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { participationRepository } from '@/repositories/participation.repository';
+import { invalidateActivityData } from './invalidate';
+
+export const useCancelJoinRequest = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (activityId: string) => participationRepository.cancelJoinRequest(activityId),
+    onSuccess: (_data, activityId) => invalidateActivityData(queryClient, activityId),
+  });
+};

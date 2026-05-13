@@ -3,22 +3,36 @@ import { Stack, useRouter, useSegments } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import React, { useEffect } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { ApiError } from "@/api/client";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { ActivitiesProvider } from "@/contexts/ActivitiesContext";
-import { ActivityRatingsProvider } from "@/contexts/ActivityRatingsContext";
-import { ActivityParticipationProvider } from "@/contexts/ActivityParticipationContext";
-import { QrTokenProvider } from "@/contexts/QrTokenContext";
-import { NotificationsProvider } from "@/contexts/NotificationsContext";
-import { SubscriptionsProvider } from "@/contexts/SubscriptionsContext";
-import { UserActivityFeedProvider } from "@/contexts/UserActivityFeedContext";
-import { UsersProvider } from "@/contexts/UsersContext";
 import { ActivityFiltersProvider } from "@/contexts/ActivityFiltersContext";
 import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { View, ActivityIndicator, StyleSheet, StatusBar } from "react-native";
 
 SplashScreen.preventAutoHideAsync();
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+    defaultOptions: {
+        queries: {
+            staleTime: 30 * 1000,
+            gcTime: 5 * 60 * 1000,
+            retry: (failureCount, error) => {
+                if (error instanceof ApiError) {
+                    if (error.status >= 400 && error.status < 500) {
+                        return false;
+                    }
+
+                    return failureCount < 2;
+                }
+
+                return failureCount < 2;
+            },
+        },
+        mutations: {
+            retry: false,
+        },
+    },
+});
 
 function RootLayoutNav() {
     const { currentUser, isAuthReady } = useAuth();
@@ -57,6 +71,7 @@ function RootLayoutNav() {
                 <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                 <Stack.Screen name="auth" options={{ headerShown: false }} />
                 <Stack.Screen name="register" options={{ headerShown: false }} />
+                <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
                 <Stack.Screen name="create-activity" options={{ headerShown: false }} />
                 <Stack.Screen
                     name="activity/[id]"
@@ -112,25 +127,9 @@ export default function RootLayout() {
             <GestureHandlerRootView style={{ flex: 1 }}>
                 <ThemeProvider>
                     <AuthProvider>
-                        <UsersProvider>
-                            <NotificationsProvider>
-                                <SubscriptionsProvider>
-                                    <UserActivityFeedProvider>
-                                        <ActivityFiltersProvider>
-                                            <ActivitiesProvider>
-                                                <ActivityParticipationProvider>
-                                                    <QrTokenProvider>
-                                                        <ActivityRatingsProvider>
-                                                            <RootLayoutNav />
-                                                        </ActivityRatingsProvider>
-                                                    </QrTokenProvider>
-                                                </ActivityParticipationProvider>
-                                            </ActivitiesProvider>
-                                        </ActivityFiltersProvider>
-                                    </UserActivityFeedProvider>
-                                </SubscriptionsProvider>
-                            </NotificationsProvider>
-                        </UsersProvider>
+                        <ActivityFiltersProvider>
+                            <RootLayoutNav />
+                        </ActivityFiltersProvider>
                     </AuthProvider>
                 </ThemeProvider>
             </GestureHandlerRootView>

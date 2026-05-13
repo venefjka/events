@@ -1,5 +1,5 @@
 import createContextHook from '@nkzw/create-context-hook';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FilterState } from '@/types';
 import { useAuth } from '@/contexts/AuthContext';
 import { createDefaultFilters, getFilterProfileContext } from '@/components/filters/helpers';
@@ -17,8 +17,21 @@ const buildInitialState = (
 
 export const [ActivityFiltersProvider, useActivityFiltersStore] = createContextHook(() => {
   const { currentUser } = useAuth();
+  const currentUserId = currentUser?.id ?? null;
+  const previousUserIdRef = useRef<string | null | undefined>(undefined);
   const profile = useMemo(() => getFilterProfileContext(currentUser), [currentUser]);
   const [filtersByScope, setFiltersByScope] = useState<FilterScopeState>(() => buildInitialState(profile));
+
+  useEffect(() => {
+    const previousUserId = previousUserIdRef.current;
+    previousUserIdRef.current = currentUserId;
+
+    if (previousUserId === undefined || previousUserId === currentUserId) {
+      return;
+    }
+
+    setFiltersByScope(buildInitialState(profile));
+  }, [currentUserId, profile]);
 
   useEffect(() => {
     setFiltersByScope((prev) => {
