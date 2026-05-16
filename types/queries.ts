@@ -2,6 +2,7 @@
 
 export interface ActivityListQuery {
   q?: string;
+  source?: 'user' | 'kudago';
   limit?: number;
   cursor?: string;
   sort?: 'start_at' | 'created_at' | 'price';

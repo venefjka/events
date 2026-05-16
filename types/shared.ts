@@ -77,6 +77,7 @@ export interface ActivityPolicyFlagsDto {
   canRate: boolean;
   canEdit: boolean;
   canCancelActivity: boolean;
+  canBecomeOrganizer: boolean;
 }
 
 export interface CategoryIconNameMap {

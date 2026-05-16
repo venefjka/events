@@ -1,5 +1,5 @@
 import React from 'react';
-import { Asterisk, Flower2, Sprout, TreeDeciduous, MapPin, Monitor } from 'lucide-react-native';
+import { Asterisk, Flower2, Globe2, MapPin, Monitor, Sprout, TreeDeciduous, UserRound } from 'lucide-react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Feather from '@expo/vector-icons/Feather';
 
@@ -7,6 +7,7 @@ export type GenderOption = 'any' | 'male' | 'female';
 export type LevelOption = 'any' | 'beginner' | 'intermediate' | 'advanced';
 export type ApprovalOption = 'request' | 'free';
 export type ApprovalFilterOption = 'any' | ApprovalOption;
+export type SourceFilterOption = 'all' | 'user' | 'kudago';
 
 export const getGenderItems = () => [
   {
@@ -111,6 +112,30 @@ export const getFormatItems = () => [
     label: 'Онлайн',
     renderIcon: ({ color, size }: { color: string; size: number }) => (
       <Monitor size={size} color={color} />
+    ),
+  },
+];
+
+export const getSourceFilterItems = () => [
+  {
+    id: 'all' as const,
+    label: 'Все события',
+    renderIcon: ({ size, color }: { size: number; color: string }) => (
+      <Asterisk size={size * 1.2} color={color} />
+    ),
+  },
+  {
+    id: 'user' as const,
+    label: 'Пользовательские',
+    renderIcon: ({ size, color }: { size: number; color: string }) => (
+      <UserRound size={size} color={color} />
+    ),
+  },
+  {
+    id: 'kudago' as const,
+    label: 'Импортированные',
+    renderIcon: ({ size, color }: { size: number; color: string }) => (
+      <Globe2 size={size} color={color} />
     ),
   },
 ];

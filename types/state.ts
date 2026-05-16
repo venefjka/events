@@ -1,7 +1,11 @@
-﻿import { ActivityFormat, ActivityLevel } from './primitives';
+import { ActivityFormat } from './primitives';
 import { CityDto } from './shared';
-
-export type ActivityRegistrationFilter = 'any' | 'request' | 'free';
+import type {
+  ApprovalFilterOption,
+  GenderOption,
+  LevelOption,
+  SourceFilterOption,
+} from '@/constants/activityPreferenceOptions';
 
 export interface FilterState {
   categoryId?: string;
@@ -10,10 +14,10 @@ export interface FilterState {
   cityQuery: string;
   selectedCity: CityDto | null;
   maxParticipants: number | null;
-  registrationType: ActivityRegistrationFilter;
+  registrationType: ApprovalFilterOption;
   onlyAvailable: boolean;
-  level: 'any' | ActivityLevel;
-  gender: 'any' | 'male' | 'female';
+  level: LevelOption;
+  gender: GenderOption;
   format: ActivityFormat;
   ageFrom: number | null;
   ageTo: number | null;
@@ -22,7 +26,7 @@ export interface FilterState {
   dateTo: string;
   timeFrom: string;
   timeTo: string;
-  showImportedWithoutOrganizer: boolean;
+  sourceFilter: SourceFilterOption;
 }
 
 export interface UserHistoryState {

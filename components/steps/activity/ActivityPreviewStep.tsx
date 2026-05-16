@@ -11,6 +11,7 @@ import { getDeviceTimeZone, getTimeZoneFromLocation } from '@/utils/timezone';
 interface ActivityPreviewStepProps {
   data: any;
   updateData: (data: any) => void;
+  mode?: 'register' | 'edit';
   categories: ActivityCategory[];
   currentUser: UserSnippetDto;
   setScrollEnabled?: (enabled: boolean) => void;
@@ -21,6 +22,7 @@ const MAX_VISIBLE_ITEMS = 2;
 
 export const ActivityPreviewStep: React.FC<ActivityPreviewStepProps> = ({
   data,
+  mode,
   categories,
   currentUser,
 }) => {
@@ -89,6 +91,8 @@ export const ActivityPreviewStep: React.FC<ActivityPreviewStepProps> = ({
     subcategoryId: subcategory?.id ?? categories[0].subcategories[0].id,
     coverPhotoFileId: data.photo,
     organizer: currentUser,
+    source: 'User',
+    kudagoUrl: null,
     format: data.format || 'offline',
     status: data.status,
     location: {
@@ -119,7 +123,7 @@ export const ActivityPreviewStep: React.FC<ActivityPreviewStepProps> = ({
   };
   const sharedPhotoUri = data.photoUrl;
 
-  const shouldRepeat = data.isRepeating === 'yes' && data.endRepeatDate?.trim();
+  const shouldRepeat = mode !== 'edit' && data.isRepeating === 'yes' && data.endRepeatDate?.trim();
   const repeatEndDateTime = shouldRepeat
     ? buildDateTimeWithTimeZone(data.endRepeatDate ?? '', data.startTime ?? '', timeZone)
     : null;

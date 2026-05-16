@@ -1,12 +1,18 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useWindowDimensions } from 'react-native';
 import { categories } from '@/constants/categories';
-import { parseMaxParticipantsInput } from '@/constants/activityPreferenceOptions';
+import {
+  parseMaxParticipantsInput,
+  type ApprovalFilterOption,
+  type GenderOption,
+  type LevelOption,
+  type SourceFilterOption,
+} from '@/constants/activityPreferenceOptions';
 import { parseDateInput } from '@/utils/date';
 import { formatDateInput, formatTimeInput } from '@/utils/formatInput';
 import { verifyCityByNominatim, type CitySearchResult } from '@/utils/verifyCity';
 import { useTheme } from '@/themes/useTheme';
-import type { FilterState } from '@/types';
+import type { ActivityFormat, FilterState } from '@/types';
 import type { FilterProfileContext, FiltersFormController } from './types';
 
 interface UseFiltersFormControllerParams {
@@ -203,16 +209,16 @@ export const useFiltersFormController = ({
     setCityError(undefined);
   }, [setLocalFilters]);
 
-  const handleFormatChange = useCallback((format: FilterState['format']) => {
+  const handleFormatChange = useCallback((format: ActivityFormat) => {
     const nextSelectedCity =
       format === 'online' ? null : (localFilters.selectedCity ?? profile.profileSelectedCity);
     const nextCityQuery =
       format === 'online'
         ? ''
         : (localFilters.cityQuery?.trim() ||
-            nextSelectedCity?.title ||
-            profile.profileCityTitle ||
-            profile.profileCity);
+          nextSelectedCity?.title ||
+          profile.profileCityTitle ||
+          profile.profileCity);
 
     setLocalFilters((prev) => ({
       ...prev,
@@ -264,7 +270,7 @@ export const useFiltersFormController = ({
     setLocalFilters((prev) => ({ ...prev, priceTo: null }));
   }, [setLocalFilters]);
 
-  const handleRegistrationTypeChange = useCallback((value: typeof registrationId) => {
+  const handleRegistrationTypeChange = useCallback((value: ApprovalFilterOption) => {
     setLocalFilters((prev) => ({ ...prev, registrationType: value }));
   }, [setLocalFilters]);
 
@@ -286,15 +292,15 @@ export const useFiltersFormController = ({
     setLocalFilters((prev) => ({ ...prev, onlyAvailable: value }));
   }, [setLocalFilters]);
 
-  const handleShowImportedWithoutOrganizerChange = useCallback((value: boolean) => {
-    setLocalFilters((prev) => ({ ...prev, showImportedWithoutOrganizer: value }));
+  const handleSourceFilterChange = useCallback((value: SourceFilterOption) => {
+    setLocalFilters((prev) => ({ ...prev, sourceFilter: value }));
   }, [setLocalFilters]);
 
-  const handleGenderChange = useCallback((value: typeof genderId) => {
+  const handleGenderChange = useCallback((value: GenderOption) => {
     setLocalFilters((prev) => ({ ...prev, gender: value }));
   }, [setLocalFilters]);
 
-  const handleLevelChange = useCallback((value: typeof levelId) => {
+  const handleLevelChange = useCallback((value: LevelOption) => {
     setLocalFilters((prev) => ({ ...prev, level: value }));
   }, [setLocalFilters]);
 
@@ -357,7 +363,7 @@ export const useFiltersFormController = ({
     handleMaxParticipantsInput,
     clearMaxParticipants,
     handleOnlyAvailableChange,
-    handleShowImportedWithoutOrganizerChange,
+    handleSourceFilterChange,
     handleGenderChange,
     applyAgeRange,
     handleLevelChange,

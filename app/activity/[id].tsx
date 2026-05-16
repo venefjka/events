@@ -46,7 +46,7 @@ import { getApprovalItems, getGenderItems, getLevelItems } from '@/constants/act
 import { openExternalMap } from '@/utils/openSideMaps';
 import { getFileUrl } from '@/utils/files';
 import { CachedImage } from '@/components/ui/CachedImage';
-import { getActivityCategory, getAgeRangeLabel, isImportedActivity, toPersonSummary } from '@/utils/activityUtils';
+import { KUDAGO_ORGANIZER_SUMMARY, getActivityCategory, getAgeRangeLabel, isImportedActivity, toPersonSummary } from '@/utils/activity';
 
 // todo: refactor
 
@@ -56,7 +56,7 @@ export default function ActivityDetailScreen() {
   const { currentUser } = useAuth();
   const activityQuery = useActivityDetails(activityId);
   const activity = activityQuery.data;
-  const isOrganizer = Boolean(activity && currentUser && activity.organizer.id === currentUser.id);
+  const isOrganizer = Boolean(activity && currentUser && activity.organizer?.id === currentUser.id);
   const isImported = isImportedActivity(activity);
 
   const participantsQuery = useActivityParticipants(
@@ -96,6 +96,7 @@ export default function ActivityDetailScreen() {
   const canRateActivity = Boolean(policyFlags?.canRate);
   const canEditActivity = Boolean(policyFlags?.canEdit);
   const canCancelActivity = Boolean(policyFlags?.canCancelActivity);
+  const canBecomeOrganizer = Boolean(policyFlags?.canBecomeOrganizer);
 
   const joinRequestsQuery = useActivityJoinRequests(activityId, { limit: 50 }, canManageRequests);
   const isParticipant =
@@ -182,16 +183,16 @@ export default function ActivityDetailScreen() {
   const photoUrls = activity.photoFileIds.map(getFileUrl).filter((uri): uri is string => Boolean(uri));
   const coverPhotoUri = getFileUrl(activity.coverPhotoFileId ?? activity.photoFileIds?.[0]);
 
-  const organizerSummary = toPersonSummary(activity.organizer);
+  const organizerSummary = activity.organizer ? toPersonSummary(activity.organizer) : KUDAGO_ORGANIZER_SUMMARY;
   const previewParticipants = activity.participantsPreview.map(toPersonSummary).slice(0, 3);
 
   const sheetParticipantsSource = participantsQuery.data?.items?.length
     ? participantsQuery.data.items.map((item) => item.user)
     : activity.participantsPreview;
   const sheetParticipants = [
-    organizerSummary,
+    ...(activity.organizer ? [organizerSummary] : []),
     ...sheetParticipantsSource
-      .filter((participant) => participant.id !== activity.organizer.id)
+      .filter((participant) => participant.id !== activity.organizer?.id)
       .map(toPersonSummary),
   ];
   const joinRequests = (joinRequestsQuery.data?.items ?? []).map((item) => toPersonSummary(item.user));
@@ -216,7 +217,7 @@ export default function ActivityDetailScreen() {
   ];
   const footerMeta = isOrganizer ? 'Вы организатор' : isParticipant ? 'Вы участвуете' : '';
   const shouldShowFooter =
-    isImported ||
+    canBecomeOrganizer ||
     canJoinActivity ||
     canLeaveActivity ||
     canCancelRequest ||
@@ -283,18 +284,17 @@ export default function ActivityDetailScreen() {
   };
 
   const handleEditActivity = () => {
-    Alert.alert('Редактирование', 'Экран редактирования активности пока не подключен.');
+    router.push(`/activity/${encodeURIComponent(activity.id)}/edit`);
   };
 
   const handleBecomeOrganizer = () => {
-    if (!activity) return;
-    router.push(`/create-activity?sourceActivityId=${encodeURIComponent(activity.id)}`);
+    router.push(`/activity/${encodeURIComponent(activity.id)}/duplicate`);
   };
 
   const handleOpenSource = async () => {
-    if (('siteUrl' in activity) && activity?.siteUrl) {
+    if (activity.kudagoUrl) {
       try {
-        await Linking.openURL(activity.siteUrl as string);
+        await Linking.openURL(activity.kudagoUrl);
       } catch (error) {
       }
     } else return;
@@ -365,8 +365,10 @@ export default function ActivityDetailScreen() {
             participantPreview={previewParticipants}
             participantsCountLabel={participantsLabel}
             onOrganizerPress={isImported ? () => { } : () => navigateToUser(organizerSummary)}
-            onParticipantsPress={() => setIsParticipantsSheetVisible(true)}
-            organizerActionLabel={isImported ? 'Открыть на KudaGo' : undefined}
+            onParticipantsPress={isImported ? undefined : () => setIsParticipantsSheetVisible(true)}
+            organizerLabel={isImported ? 'Источник' : undefined}
+            showParticipants={!isImported}
+            organizerActionLabel={isImported ? 'Открыть веб-сайт' : undefined}
             onOrganizerActionPress={isImported ? handleOpenSource : undefined}
           />
 
@@ -475,9 +477,9 @@ export default function ActivityDetailScreen() {
             </Text>
           ) : null}
 
-          {isImported ? (
+          {canBecomeOrganizer ? (
             <Button
-              title="Стать организатором"
+              title="Найти компанию"
               variant="primary"
               size="medium"
               fullWidth
@@ -550,7 +552,7 @@ export default function ActivityDetailScreen() {
       <ParticipantsSheet
         visible={isParticipantsSheetVisible}
         participants={sheetParticipants}
-        organizerId={activity.organizer.id}
+        organizerId={activity.organizer?.id}
         onClose={() => setIsParticipantsSheetVisible(false)}
         onParticipantPress={(participantId) => {
           const participant = sheetParticipants.find((item) => item.id === participantId);

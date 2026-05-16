@@ -18,7 +18,9 @@ interface PeopleSummarySectionProps {
   participantPreview: PersonSummary[];
   participantsCountLabel: string;
   onOrganizerPress: () => void;
-  onParticipantsPress: () => void;
+  onParticipantsPress?: () => void;
+  organizerLabel?: string;
+  showParticipants?: boolean;
   organizerActionLabel?: string;
   onOrganizerActionPress?: () => void;
 }
@@ -29,6 +31,8 @@ export function PeopleSummarySection({
   participantsCountLabel,
   onOrganizerPress,
   onParticipantsPress,
+  organizerLabel = 'Организатор',
+  showParticipants = true,
   organizerActionLabel,
   onOrganizerActionPress,
 }: PeopleSummarySectionProps) {
@@ -50,7 +54,7 @@ export function PeopleSummarySection({
           isDeleted={organizer.isDeleted}
         />
         <View style={styles.organizerContent}>
-          <Text style={{ color: theme.colors.textSecondary, ...theme.typography.caption }}>Организатор</Text>
+          <Text style={{ color: theme.colors.textSecondary, ...theme.typography.caption }}>{organizerLabel}</Text>
           <Text numberOfLines={1} style={{ color: theme.colors.text, ...theme.typography.bodyLargeBold }}>
             {organizer.name}
           </Text>
@@ -66,34 +70,36 @@ export function PeopleSummarySection({
         </View>
       </TouchableOpacity>
 
-      <TouchableOpacity activeOpacity={0.85} onPress={onParticipantsPress} style={styles.participantsButton}>
-        <Text style={{ color: theme.colors.textSecondary, ...theme.typography.caption }}>Участники</Text>
-        <View style={styles.participantsRow}>
-          <View style={styles.avatarGroup}>
-            {participantPreview.map((participant, index) => (
-              <Avatar
-                key={participant.id}
-                name={participant.name}
-                size="small"
-                imageUrl={participant.avatarUrl}
-                isDeleted={participant.isDeleted}
-                style={[
-                  styles.participantAvatar,
-                  participant.isDeleted && styles.deletedPerson,
-                  {
-                    marginLeft: index === 0 ? 0 : -theme.spacing.sm,
-                    zIndex: participantPreview.length - index,
-                    borderColor: theme.colors.background,
-                  },
-                ]}
-              />
-            ))}
+      {showParticipants ? (
+        <TouchableOpacity activeOpacity={0.85} onPress={onParticipantsPress} style={styles.participantsButton}>
+          <Text style={{ color: theme.colors.textSecondary, ...theme.typography.caption }}>Участники</Text>
+          <View style={styles.participantsRow}>
+            <View style={styles.avatarGroup}>
+              {participantPreview.map((participant, index) => (
+                <Avatar
+                  key={participant.id}
+                  name={participant.name}
+                  size="small"
+                  imageUrl={participant.avatarUrl}
+                  isDeleted={participant.isDeleted}
+                  style={[
+                    styles.participantAvatar,
+                    participant.isDeleted && styles.deletedPerson,
+                    {
+                      marginLeft: index === 0 ? 0 : -theme.spacing.sm,
+                      zIndex: participantPreview.length - index,
+                      borderColor: theme.colors.background,
+                    },
+                  ]}
+                />
+              ))}
+            </View>
+            <Text style={[styles.participantsCount, { color: theme.colors.text, ...theme.typography.bodyBold }]}>
+              {participantsCountLabel}
+            </Text>
           </View>
-          <Text style={[styles.participantsCount, { color: theme.colors.text, ...theme.typography.bodyBold }]}>
-            {participantsCountLabel}
-          </Text>
-        </View>
-      </TouchableOpacity>
+        </TouchableOpacity>
+      ) : null}
     </View>
   );
 }

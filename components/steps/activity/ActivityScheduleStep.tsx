@@ -24,6 +24,7 @@ import { ActivityScheduleCalendar } from '../../../components/forms/ActivitySche
 interface ActivityScheduleStepProps {
   data: any;
   updateData: (data: any) => void;
+  mode?: 'register' | 'edit';
   errors?: Record<string, string>;
   showErrors?: boolean;
 }
@@ -119,6 +120,7 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
 export const ActivityScheduleStep: React.FC<ActivityScheduleStepProps> = ({
   data,
   updateData,
+  mode,
   errors,
   showErrors,
 }) => {
@@ -138,6 +140,7 @@ export const ActivityScheduleStep: React.FC<ActivityScheduleStepProps> = ({
   const isRepeatingId: IsRepeatingFormat = data.isRepeating ?? 'no';
   const duration: Duration = data.duration ?? 'oneDay';
   const formatId: ActivityFormat = data.format ?? 'offline';
+  const canPlanRepeats = mode !== 'edit';
   const startDateValue = data.startDate ?? '';
   const endDateValue = data.endDate ?? '';
   const startDate = useMemo(() => parseDateInput(startDateValue), [startDateValue]);
@@ -256,8 +259,7 @@ export const ActivityScheduleStep: React.FC<ActivityScheduleStepProps> = ({
   return (
     <View style={[styles.container, { padding: theme.spacing.screenPaddingHorizontal }]}>
       <View>
-
-      <ActivityScheduleCalendar
+        <ActivityScheduleCalendar
           variant="inputs"
           duration={duration}
           isOpen={isCalendarOpen}
@@ -279,7 +281,6 @@ export const ActivityScheduleStep: React.FC<ActivityScheduleStepProps> = ({
           onSingleChange={handleSingleChange}
           onRangeChange={handleRangeChange}
         />
-
 
         <CollapsibleSection collapsed={isCalendarOpen} spacingTop={theme.spacing.xxxl}>
           <View style={[styles.row, { width: '100%', alignItems: 'center' }]}>
@@ -376,56 +377,58 @@ export const ActivityScheduleStep: React.FC<ActivityScheduleStepProps> = ({
           </View>
         </CollapsibleSection>
 
-        <CollapsibleSection collapsed={isCalendarOpen} spacingTop={theme.spacing.xxxl}>
-          <View style={{ width: '100%' }}>
-            <Text style={{ ...theme.typography.label, color: theme.colors.text, marginBottom: theme.spacing.md }}>
-              Запланировать повтор
-            </Text>
-            <ExpandableTabBar<IsRepeatingFormat>
-              items={isRepeatingItems}
-              activeId={isRepeatingId}
-              onChange={(id) => updateData({ isRepeating: id })}
-              circleSize={theme.spacing.iconButtonHeight}
-              iconSize={theme.spacing.iconSizeMedium}
-              pillStyle={{ height: theme.spacing.inputHeight, borderRadius: theme.spacing.radiusRound }}
-              activePillWidth={0.8}
-            />
-          </View>
+        {canPlanRepeats && (
+          <CollapsibleSection collapsed={isCalendarOpen} spacingTop={theme.spacing.xxxl}>
+            <View style={{ width: '100%' }}>
+              <Text style={{ ...theme.typography.label, color: theme.colors.text, marginBottom: theme.spacing.md }}>
+                Запланировать повтор
+              </Text>
+              <ExpandableTabBar<IsRepeatingFormat>
+                items={isRepeatingItems}
+                activeId={isRepeatingId}
+                onChange={(id) => updateData({ isRepeating: id })}
+                circleSize={theme.spacing.iconButtonHeight}
+                iconSize={theme.spacing.iconSizeMedium}
+                pillStyle={{ height: theme.spacing.inputHeight, borderRadius: theme.spacing.radiusRound }}
+                activePillWidth={0.8}
+              />
+            </View>
 
-          {isRepeatingId == 'yes' &&
-            <>
-              <View style={[{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                marginTop: theme.spacing.xxxl
-              }]}>
-                <View style={{ width: '57%' }}>
-                  <DropdownChipSelector
-                    label='Частота'
-                    value={repeatId}
-                    items={repeatOptions.map((option) => ({
-                      id: option.id,
-                      label: option.label,
-                    }))}
-                    onSelect={(repeatId) => updateData({ repeat: repeatId })}
-                    allowClear={false}
-                    dropdownPlacement='above'
+            {isRepeatingId == 'yes' &&
+              <>
+                <View style={[{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  marginTop: theme.spacing.xxxl
+                }]}>
+                  <View style={{ width: '57%' }}>
+                    <DropdownChipSelector
+                      label='Частота'
+                      value={repeatId}
+                      items={repeatOptions.map((option) => ({
+                        id: option.id,
+                        label: option.label,
+                      }))}
+                      onSelect={(repeatId) => updateData({ repeat: repeatId })}
+                      allowClear={false}
+                      dropdownPlacement='above'
+                    />
+                  </View>
+                  <FormField
+                    label="Конец повтора"
+                    value={data.endRepeatDate || ''}
+                    onChangeText={(text) => updateData({ endRepeatDate: formatDateInput(text) })}
+                    placeholder="ДД.ММ.ГГГГ"
+                    keyboardType="number-pad"
+                    error={endRepeatDateError}
+                    maxLength={10}
+                    style={{ width: "38%", marginBottom: 0 }}
                   />
                 </View>
-                <FormField
-                  label="Конец повтора"
-                  value={data.endRepeatDate || ''}
-                  onChangeText={(text) => updateData({ endRepeatDate: formatDateInput(text) })}
-                  placeholder="ДД.ММ.ГГГГ"
-                  keyboardType="number-pad"
-                  error={endRepeatDateError}
-                  maxLength={10}
-                  style={{ width: "38%", marginBottom: 0 }}
-                />
-              </View>
-            </>
-          }
-        </CollapsibleSection>
+              </>
+            }
+          </CollapsibleSection>
+        )}
       </View>
     </View>
   );
@@ -440,4 +443,3 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
 });
-

@@ -100,8 +100,10 @@ const getUtcScheduleParams = (
 export const toActivityListQuery = (filters: FilterState, limit = 50, searchQuery = ''): ActivityListQuery => {
   const q = searchQuery.trim();
   const scheduleParams = getUtcScheduleParams(filters);
+  const sourceFilter = filters.sourceFilter ?? 'all';
   const query: ActivityListQuery = {
     q: q || undefined,
+    source: sourceFilter === 'all' ? undefined : sourceFilter,
     limit,
     categoryId: filters.categoryId || undefined,
     subcategoryId: filters.subcategoryId || undefined,

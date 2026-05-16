@@ -29,7 +29,7 @@ import {
     MIN_CLUSTER_ZOOM_DELTA,
 } from '@/utils/mapClusterUtils';
 import { ActivityListItemDto } from '@/types';
-import { getActivityCategory } from '@/utils/activityUtils';
+import { getActivityCategory } from '@/utils/activity';
 
 interface MapSectionProps {
     activities: ActivityListItemDto[];

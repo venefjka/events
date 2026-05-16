@@ -66,7 +66,9 @@ export interface ActivityListItemDto {
   subcategoryId: SubcategoryId | null;
   photoFileIds?: Id[];
   coverPhotoFileId?: Id | null;
-  organizer: UserSnippetDto;
+  organizer: UserSnippetDto | null;
+  source: 'User' | 'KudaGo';
+  kudagoUrl?: string | null;
   participantsCount: number;
   pendingRequestsCount?: number;
   requiresApproval: boolean;
@@ -93,7 +95,9 @@ export interface ActivityDetailDto {
   subcategoryId?: SubcategoryId | null;
   photoFileIds: Id[];
   coverPhotoFileId?: Id | null;
-  organizer: UserSnippetDto;
+  organizer: UserSnippetDto | null;
+  source: 'User' | 'KudaGo';
+  kudagoUrl?: string | null;
   participantsCount: number;
   participantsPreview: UserSnippetDto[];
   pendingRequestsCount?: number;

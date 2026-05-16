@@ -107,7 +107,7 @@ export default function QRScanScreen() {
     }
   };
 
-  if (!resolvedActivityId || (!activityQuery.isLoading && (!activity || activity.organizer.id !== currentUser.id))) {
+  if (!resolvedActivityId || (!activityQuery.isLoading && (!activity || activity.organizer?.id !== currentUser.id))) {
     return <Redirect href="/qr?mode=organizer" />;
   }
 

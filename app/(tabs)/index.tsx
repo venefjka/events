@@ -258,10 +258,10 @@ export default function ExploreScreen() {
             <Animated.View
                 pointerEvents={areFiltersAvailable ? 'auto' : 'none'}
                 style={[styles.searchWrapper, controlsAnimatedStyle, {
-                marginHorizontal: theme.spacing.screenPaddingHorizontal,
-                marginVertical: theme.spacing.md,
-                top: headerHeight + theme.spacing.xs,
-            }]}>
+                    marginHorizontal: theme.spacing.screenPaddingHorizontal,
+                    marginVertical: theme.spacing.md,
+                    top: headerHeight + theme.spacing.xs,
+                }]}>
                 <Input
                     value={searchQuery}
                     onChangeText={setSearchQuery}
@@ -274,8 +274,8 @@ export default function ExploreScreen() {
             <Animated.View
                 pointerEvents={areFiltersAvailable ? 'auto' : 'none'}
                 style={[styles.filtersRowWrapper, controlsAnimatedStyle, {
-                top: headerHeight + theme.spacing.inputHeight + theme.spacing.md * 2,
-            }]}>
+                    top: headerHeight + theme.spacing.inputHeight + theme.spacing.md * 2,
+                }]}>
                 <FilterChipsRow filters={filters} onPress={openFilterSection} />
             </Animated.View>
 
@@ -319,7 +319,7 @@ export default function ExploreScreen() {
             <FilterBottomSheetModal
                 visible={Boolean(activeFilterSection)}
                 title={activeFilterSection ? getFilterSectionTitle(activeFilterSection) : 'Фильтр'}
-                titleSecondary='начала события'
+                titleSecondary={activeFilterSection === 'schedule' ? 'начала события' : undefined}
                 onClose={closeFilterSection}
                 onApply={handleApplyFilterSection}
                 onReset={handleResetFilterSection}

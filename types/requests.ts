@@ -59,6 +59,8 @@ export interface CreateActivitiesBatchRequest {
 export interface UpdateActivityRequest {
   title?: string;
   description?: string;
+  categoryId?: string;
+  subcategoryId?: string;
   format?: ActivityFormat;
   location?: LocationDto;
   startAt?: IsoDateTimeString;

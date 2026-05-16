@@ -10,7 +10,7 @@ import type { PersonSummary } from './PeopleSummarySection';
 interface ParticipantsSheetProps {
   visible: boolean;
   participants: PersonSummary[];
-  organizerId: string;
+  organizerId?: string | null;
   onClose: () => void;
   onParticipantPress: (participantId: string) => void;
 }

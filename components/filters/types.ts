@@ -1,10 +1,11 @@
 import type React from 'react';
 import type { Dispatch, SetStateAction } from 'react';
-import type { ActivityCategory, FilterState, SubCategory } from '@/types';
+import type { ActivityCategory, ActivityFormat, FilterState, SubCategory } from '@/types';
 import type {
   ApprovalFilterOption,
   GenderOption,
   LevelOption,
+  SourceFilterOption,
 } from '@/constants/activityPreferenceOptions';
 import type { CitySearchResult } from '@/utils/verifyCity';
 
@@ -46,7 +47,7 @@ export interface FiltersFormController {
   isCityConfirmed: boolean;
   handleCategorySelect: (categoryId: string) => void;
   handleSubcategorySelect: (subcategoryId: string) => void;
-  handleFormatChange: (format: FilterState['format']) => void;
+  handleFormatChange: (format: ActivityFormat) => void;
   handleCityQueryChange: (text: string) => void;
   handleSelectCity: (place: CitySearchResult) => void;
   handleStartDateInput: (text: string) => void;
@@ -59,7 +60,7 @@ export interface FiltersFormController {
   handleMaxParticipantsInput: (text: string) => void;
   clearMaxParticipants: () => void;
   handleOnlyAvailableChange: (value: boolean) => void;
-  handleShowImportedWithoutOrganizerChange: (value: boolean) => void;
+  handleSourceFilterChange: (value: SourceFilterOption) => void;
   handleGenderChange: (value: GenderOption) => void;
   applyAgeRange: (fromValue: string, toValue: string) => void;
   handleLevelChange: (value: LevelOption) => void;

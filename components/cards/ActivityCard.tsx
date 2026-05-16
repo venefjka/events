@@ -23,6 +23,7 @@ import { categories } from '@/constants/categories';
 import { getFileUrl } from '@/utils/files';
 import { CachedImage } from '@/components/ui/CachedImage';
 import { ActivityCardModel } from '@/types';
+import { isImportedActivity } from '@/utils/activity';
 
 type Mode = 'map' | 'list';
 type Variant = 'default' | 'compact';
@@ -53,11 +54,12 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
     const theme = useTheme();
     const category = categories.find((item) => item.id === activity.categoryId) ?? categories[0];
     const subcategory = category.subcategories.find((item) => item.id === activity.subcategoryId);
-    const organizerName = activity.organizer.name;
-    const organizerAvatarUri = getFileUrl(activity.organizer.avatarFileId);
+    const organizerName = activity.organizer?.name ?? (activity.source === 'KudaGo' ? 'KudaGo' : 'Организатор');
+    const organizerAvatarUri = getFileUrl(activity.organizer?.avatarFileId);
     const coverPhotoUri = getFileUrl(activity.coverPhotoFileId);
     const photoUri = photoUriOverride || coverPhotoUri;
     const participantsCount = activity.participantsCount;
+    const isImported = isImportedActivity(activity);
     const timeZone = 'timeZone' in activity ? activity.timeZone as string : 'UTC';
     const isCompact = variant === 'compact';
     const [photoFailed, setPhotoFailed] = React.useState(false);
@@ -216,7 +218,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                                         name={organizerName}
                                         size="xs"
                                         imageUrl={organizerAvatarUri}
-                                        isDeleted={activity.organizer.isDeleted}
+                                        isDeleted={activity.organizer?.isDeleted}
                                         style={styles.organizerAvatar}
                                     />
                                 }
@@ -257,7 +259,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                                         name={organizerName}
                                         size="xs"
                                         imageUrl={organizerAvatarUri}
-                                        isDeleted={activity.organizer.isDeleted}
+                                        isDeleted={activity.organizer?.isDeleted}
                                         style={styles.organizerAvatar}
                                     />
                                 }
@@ -337,7 +339,7 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                                 {startLabel}
                                 {endLabelDisplay ? ` — ${endLabelDisplay}` : ''}
                             </Text>
-                            {timeZoneLabel ? (
+                            {!isImported && timeZoneLabel ? (
                                 <Text style={{ ...theme.typography.caption, color: theme.colors.textTertiary, paddingHorizontal: theme.spacing.sm }}>
                                     {timeZoneLabel}
                                 </Text>
@@ -365,13 +367,28 @@ export const ActivityCard: React.FC<ActivityCardProps> = ({
                                 {placeTitle}
                             </Text>
 
-                            <Chip
-                                label={participantsText}
-                                variant="bw"
-                                size="xs"
-                                icon={<Users size={16} color={theme.colors.textSecondary} />}
-                                style={styles.participantsChip}
-                            />
+                            {isImported && timeZoneLabel ? (
+                                <Text
+                                    numberOfLines={1}
+                                    style={[
+                                        styles.timeZoneText,
+                                        {
+                                            ...theme.typography.caption,
+                                            color: theme.colors.textTertiary,
+                                        },
+                                    ]}
+                                >
+                                    {timeZoneLabel}
+                                </Text>
+                            ) : !isImported ? (
+                                <Chip
+                                    label={participantsText}
+                                    variant="bw"
+                                    size="xs"
+                                    icon={<Users size={16} color={theme.colors.textSecondary} />}
+                                    style={styles.participantsChip}
+                                />
+                            ) : null}
                         </View>
                     </>
                 ) : null}
@@ -467,6 +484,10 @@ const styles = StyleSheet.create({
     },
 
     participantsChip: { borderWidth: 0 },
+    timeZoneText: {
+        flexShrink: 0,
+        paddingHorizontal: 8,
+    },
 
     addressRow: {
         flexDirection: 'row',

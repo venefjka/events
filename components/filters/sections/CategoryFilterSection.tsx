@@ -1,13 +1,16 @@
 import React from 'react';
-import { View, Text, Switch } from 'react-native';
+import { Text, View } from 'react-native';
 import { categories } from '@/constants/categories';
+import { getSourceFilterItems } from '@/constants/activityPreferenceOptions';
 import { DropdownChipSelector } from '@/components/forms/DropdownChipSelector';
+import { ExpandableTabBar } from '@/components/ui/ExpandableTabs';
 import { renderCategoryIcon } from '@/components/ui/CategoryIcon';
 import { useTheme } from '@/themes/useTheme';
 import type { FilterSectionProps } from '../types';
 
 export function CategoryFilterSection({ controller }: FilterSectionProps) {
   const theme = useTheme();
+  const sourceItems = React.useMemo(() => getSourceFilterItems(), []);
 
   return (
     <View style={{ gap: theme.spacing.lg }}>
@@ -45,16 +48,18 @@ export function CategoryFilterSection({ controller }: FilterSectionProps) {
           </View>
         ) : null}
       </View>
-      
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Text style={{ ...theme.typography.label, color: theme.colors.text}}>
-          Предлагать события для создания
+      <View>
+        <Text style={{ ...theme.typography.label, color: theme.colors.text, marginBottom: theme.spacing.sm }}>
+          Источник
         </Text>
-        <Switch
-          value={controller.localFilters.showImportedWithoutOrganizer}
-          onValueChange={controller.handleShowImportedWithoutOrganizerChange}
-          trackColor={{ false: theme.colors.border, true: theme.colors.primary }}
-          thumbColor={theme.colors.background}
+        <ExpandableTabBar
+          items={sourceItems}
+          activeId={controller.localFilters.sourceFilter}
+          onChange={controller.handleSourceFilterChange}
+          circleSize={theme.spacing.iconButtonHeight}
+          iconSize={theme.spacing.iconSizeMedium}
+          pillStyle={{ height: theme.spacing.inputHeight, borderRadius: theme.spacing.radiusRound }}
+          activePillWidth={0.68}
         />
       </View>
     </View>

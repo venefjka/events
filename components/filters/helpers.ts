@@ -14,7 +14,7 @@ export const createDefaultFilters = (
   maxParticipants: null,
   registrationType: 'any',
   onlyAvailable: false,
-  showImportedWithoutOrganizer: true,
+  sourceFilter: 'all',
   level: 'any',
   gender: 'any',
   format: 'offline',
@@ -54,6 +54,7 @@ export const createFilterDraft = (
   profile: FilterProfileContext
 ): FilterState => ({
   ...filters,
+  sourceFilter: filters.sourceFilter ?? 'all',
   cityQuery:
     filters.format === 'offline' && !filters.selectedCity && !filters.cityQuery?.trim()
       ? profile.profileCityTitle || profile.profileCity
@@ -67,7 +68,7 @@ export const createFilterDraft = (
 export const getFilterSectionTitle = (key: FilterSectionKey): string => {
   switch (key) {
     case 'category':
-      return 'Категория';
+      return 'Тип события';
     case 'format':
       return 'Формат';
     case 'schedule':
@@ -96,11 +97,19 @@ const shortenText = (value: string, maxLength = 18) =>
   value.length > maxLength ? `${value.slice(0, maxLength - 1)}…` : value;
 
 export const getCategoryFilterSummary = (filters: FilterState) => {
+  const sourceFilter = filters.sourceFilter ?? 'all';
   const category = categories.find((item) => item.id === filters.categoryId);
   const subcategory = category?.subcategories.find((item) => item.id === filters.subcategoryId);
+  const sourceLabel =
+    sourceFilter === 'user'
+      ? 'Люди'
+      : sourceFilter === 'kudago'
+        ? 'Импорт'
+        : '';
 
-  if (subcategory?.name) return shortenText(subcategory.name);
-  if (category?.name) return shortenText(category.name);
+  if (subcategory?.name) return [sourceLabel, shortenText(subcategory.name)].filter(Boolean).join(' · ');
+  if (category?.name) return [sourceLabel, shortenText(category.name)].filter(Boolean).join(' · ');
+  if (sourceLabel) return sourceLabel;
   return 'Все';
 };
 
@@ -160,10 +169,6 @@ export const getParticipationFilterSummary = (filters: FilterState) => {
   if (filters.onlyAvailable) {
     parts.push('есть места');
   }
-  if (!filters.showImportedWithoutOrganizer) {
-    parts.push('импорт скрыт');
-  }
-
   return parts.length ? parts.slice(0, 2).join(' · ') : 'Любые';
 };
 
@@ -191,7 +196,7 @@ export const getPreferencesFilterSummary = (filters: FilterState) => {
 export const isFilterSectionActive = (filters: FilterState, key: FilterSectionKey) => {
   switch (key) {
     case 'category':
-      return Boolean(filters.categoryId || filters.subcategoryId);
+      return Boolean(filters.categoryId || filters.subcategoryId || (filters.sourceFilter ?? 'all') !== 'all');
     case 'format':
       return (
         filters.format === 'online' ||
@@ -204,8 +209,7 @@ export const isFilterSectionActive = (filters: FilterState, key: FilterSectionKe
         filters.priceTo != null ||
           filters.registrationType !== 'any' ||
           filters.maxParticipants != null ||
-          filters.onlyAvailable ||
-          !filters.showImportedWithoutOrganizer
+          filters.onlyAvailable
       );
     case 'preferences':
       return Boolean(
@@ -235,6 +239,7 @@ export const applySectionDefaults = (
               ...target,
               categoryId: defaults.categoryId,
               subcategoryId: defaults.subcategoryId,
+              sourceFilter: defaults.sourceFilter,
           };
       case 'format':
           return {
@@ -258,7 +263,6 @@ export const applySectionDefaults = (
           registrationType: defaults.registrationType,
           maxParticipants: defaults.maxParticipants,
           onlyAvailable: defaults.onlyAvailable,
-          showImportedWithoutOrganizer: defaults.showImportedWithoutOrganizer,
       };
       case 'preferences':
           return {

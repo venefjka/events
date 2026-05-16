@@ -155,7 +155,7 @@ export const HeaderButtons = {
     }),
     add: (onPress?: () => void): HeaderButton => ({
         icon: <Plus size={20} />,
-        onPress: onPress || (() => router.push('/create-activity')),
+        onPress: onPress || (() => router.push('/activity/create')),
         variant: 'primary',
     }),
     search: (onPress?: () => void): HeaderButton => ({

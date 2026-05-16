@@ -72,7 +72,9 @@ function RootLayoutNav() {
                 <Stack.Screen name="auth" options={{ headerShown: false }} />
                 <Stack.Screen name="register" options={{ headerShown: false }} />
                 <Stack.Screen name="profile/edit" options={{ headerShown: false }} />
-                <Stack.Screen name="create-activity" options={{ headerShown: false }} />
+                <Stack.Screen name="activity/create" options={{ headerShown: false }} />
+                <Stack.Screen name="activity/[id]/edit" options={{ headerShown: false }} />
+                <Stack.Screen name="activity/[id]/duplicate" options={{ headerShown: false }} />
                 <Stack.Screen
                     name="activity/[id]"
                     options={{

@@ -8,7 +8,7 @@ const MIME_BY_EXTENSION: Record<string, string> = {
   gif: 'image/gif',
 };
 
-export const getFileUrl = (fileId?: string | null) => {
+export const getFileUrl = (fileId?: string | number | null) => {
   if (!fileId) return undefined;
   return `${API_BASE_URL}/files/${fileId}`;
 };
